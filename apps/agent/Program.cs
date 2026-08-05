@@ -27,7 +27,13 @@ while (true)
         await socket.ConnectAsync(uri, CancellationToken.None);
         await AgentSocket.SendAsync(socket, new { type = "auth", token = config.AgentToken });
         Console.WriteLine("Подключено к серверу.");
-        await ReceiveLoopAsync(socket, runner);
+        var hostAction = await ReceiveLoopAsync(socket, runner);
+        if (hostAction is not null)
+        {
+            runner.CancelAll();
+            LaunchHostControl(config, hostAction);
+            return;
+        }
     }
     catch (Exception exception)
     {
@@ -44,7 +50,7 @@ static Uri BuildUri(AgentConfig config)
     return new Uri($"{config.ServerUrl}{separator}room={Uri.EscapeDataString(config.RoomCode)}&role=agent&name={Uri.EscapeDataString(config.AgentName)}");
 }
 
-static async Task ReceiveLoopAsync(ClientWebSocket socket, AhkRunner runner)
+static async Task<string?> ReceiveLoopAsync(ClientWebSocket socket, AhkRunner runner)
 {
     var buffer = new byte[8192];
     while (socket.State == WebSocketState.Open)
@@ -54,7 +60,7 @@ static async Task ReceiveLoopAsync(ClientWebSocket socket, AhkRunner runner)
         do
         {
             result = await socket.ReceiveAsync(buffer, CancellationToken.None);
-            if (result.MessageType == WebSocketMessageType.Close) return;
+            if (result.MessageType == WebSocketMessageType.Close) return null;
             stream.Write(buffer, 0, result.Count);
         } while (!result.EndOfMessage);
 
@@ -68,6 +74,13 @@ static async Task ReceiveLoopAsync(ClientWebSocket socket, AhkRunner runner)
             runner.CancelAll();
             continue;
         }
+        if (type == "hostControl")
+        {
+            if (!root.TryGetProperty("action", out var actionProperty)) continue;
+            var action = actionProperty.GetString()?.Trim().ToLowerInvariant();
+            if (action is "restart" or "shutdown") return action;
+            continue;
+        }
         if (type != "command") continue;
 
         var command = root.Deserialize<AgentCommand>(JsonOptions.Default);
@@ -78,6 +91,31 @@ static async Task ReceiveLoopAsync(ClientWebSocket socket, AhkRunner runner)
 
         _ = ExecuteAndAckAsync(socket, runner, command);
     }
+
+    return null;
+}
+
+static void LaunchHostControl(AgentConfig config, string action)
+{
+    var configuredPath = Path.IsPathRooted(config.HostControlScript)
+        ? config.HostControlScript
+        : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, config.HostControlScript));
+    if (!File.Exists(configuredPath))
+        throw new FileNotFoundException("Скрипт управления Chaos Link не найден", configuredPath);
+
+    var shell = File.Exists(Path.Combine(Environment.GetEnvironmentVariable("ProgramFiles") ?? "", "PowerShell", "7", "pwsh.exe"))
+        ? Path.Combine(Environment.GetEnvironmentVariable("ProgramFiles")!, "PowerShell", "7", "pwsh.exe")
+        : "powershell.exe";
+    Process.Start(new ProcessStartInfo
+    {
+        FileName = shell,
+        ArgumentList = { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", configuredPath, "-Action", action },
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        WindowStyle = ProcessWindowStyle.Hidden,
+        WorkingDirectory = Path.GetDirectoryName(configuredPath) ?? AppContext.BaseDirectory
+    });
+    Console.WriteLine($"Системная команда передана: {action}");
 }
 
 static async Task ExecuteAndAckAsync(ClientWebSocket socket, AhkRunner runner, AgentCommand command)
@@ -270,6 +308,7 @@ sealed class AgentConfig
     public string EffectsScript { get; init; } = "../../ahk/Effects.ahk";
     public string ScreamerSoundsPath { get; init; } = "../../screamer/sounds";
     public string ScreamerImagesPath { get; init; } = "../../screamer/images";
+    public string HostControlScript { get; init; } = "../../scripts/control-chaos-link.ps1";
 
     public static AgentConfig Load()
     {

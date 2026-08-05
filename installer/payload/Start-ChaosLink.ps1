@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([int]$Port = 5075)
+param(
+    [int]$Port = 5075,
+    [switch]$ReuseTunnel
+)
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -16,7 +19,8 @@ function Stop-StartedProcess($process, $pidFile) {
     Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
 }
 
-foreach ($name in @('server', 'tunnel')) {
+$managedNames = if ($ReuseTunnel) { @('server') } else { @('server', 'tunnel') }
+foreach ($name in $managedNames) {
     $pidFile = Join-Path $runtime "$name.pid"
     if (Test-Path $pidFile) {
         $oldId = [int](Get-Content $pidFile -Raw)
@@ -51,25 +55,30 @@ try {
     }
     if (-not $ready) { throw 'Сервер не запустился. Проверьте runtime\server.err.log.' }
 
-    $tunnelOut = Join-Path $runtime 'tunnel.out.log'
-    $tunnelErr = Join-Path $runtime 'tunnel.err.log'
-    $tunnel = Start-Process -FilePath $cloudflared `
-        -ArgumentList @('tunnel', '--no-autoupdate', '--url', "http://127.0.0.1:$Port") `
-        -WorkingDirectory $root `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $tunnelOut `
-        -RedirectStandardError $tunnelErr `
-        -PassThru
-    Set-Content $tunnelPidFile $tunnel.Id -Encoding ascii
-
     $publicUrl = $null
-    for ($attempt = 0; $attempt -lt 60; $attempt++) {
-        $text = ((Get-Content $tunnelOut -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content $tunnelErr -Raw -ErrorAction SilentlyContinue))
-        if ($text -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $publicUrl = $Matches[0]; break }
-        if ($tunnel.HasExited) { break }
-        Start-Sleep -Milliseconds 500
+    if ($ReuseTunnel) {
+        $accessBeforeRestart = Get-Content (Join-Path $runtime 'access.json') -Raw | ConvertFrom-Json
+        $publicUrl = $accessBeforeRestart.PublicUrl
+    } else {
+        $tunnelOut = Join-Path $runtime 'tunnel.out.log'
+        $tunnelErr = Join-Path $runtime 'tunnel.err.log'
+        $tunnel = Start-Process -FilePath $cloudflared `
+            -ArgumentList @('tunnel', '--no-autoupdate', '--url', "http://127.0.0.1:$Port") `
+            -WorkingDirectory $root `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $tunnelOut `
+            -RedirectStandardError $tunnelErr `
+            -PassThru
+        Set-Content $tunnelPidFile $tunnel.Id -Encoding ascii
+
+        for ($attempt = 0; $attempt -lt 60; $attempt++) {
+            $text = ((Get-Content $tunnelOut -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content $tunnelErr -Raw -ErrorAction SilentlyContinue))
+            if ($text -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $publicUrl = $Matches[0]; break }
+            if ($tunnel.HasExited) { break }
+            Start-Sleep -Milliseconds 500
+        }
+        if (-not $publicUrl) { throw 'Cloudflare Tunnel не выдал ссылку. Проверьте runtime\tunnel.err.log.' }
     }
-    if (-not $publicUrl) { throw 'Cloudflare Tunnel не выдал ссылку. Проверьте runtime\tunnel.err.log.' }
 
     & (Join-Path $root 'Start-AgentAdmin.ps1') -Port $Port
 } catch {

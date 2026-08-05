@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConnectionState, Credentials, Snapshot } from './types'
+import { socketError, type Language } from './i18n'
 
 type Notice = { tone: 'error' | 'info'; text: string } | null
 
-export function useChaosSocket(credentials: Credentials | null) {
+export function useChaosSocket(credentials: Credentials | null, language: Language) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [connection, setConnection] = useState<ConnectionState>('disconnected')
   const [notice, setNotice] = useState<Notice>(null)
   const [clockOffset, setClockOffset] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
+  const languageRef = useRef(language)
+
+  useEffect(() => {
+    languageRef.current = language
+  }, [language])
 
   useEffect(() => {
     if (!credentials) return
@@ -78,7 +84,11 @@ export function useChaosSocket(credentials: Credentials | null) {
           const roundTrip = Date.now() - message.clientTime
           setClockOffset(message.serverTime + roundTrip / 2 - Date.now())
         } else if (message.type === 'triggerRejected' || message.type === 'error') {
-          setNotice({ tone: 'error', text: message.message })
+          setNotice({ tone: 'error', text: socketError(message.code, languageRef.current, message.message) })
+        } else if (message.type === 'hostControlAccepted') {
+          setNotice({ tone: 'info', text: message.action === 'restart'
+            ? (languageRef.current === 'ru' ? 'Перезапуск запущен. Панель скоро переподключится.' : 'Restart started. The panel will reconnect shortly.')
+            : (languageRef.current === 'ru' ? 'Выключение запущено.' : 'Shutdown started.') })
         }
       }
       socket.onerror = () => {
@@ -91,7 +101,9 @@ export function useChaosSocket(credentials: Credentials | null) {
         if (event.code === 1008) {
           retryAllowed = false
           setConnection('error')
-          setNotice({ tone: 'error', text: 'Ключ доступа устарел или неверен. Нажмите «Выйти» и войдите с текущим ключом друзей.' })
+          setNotice({ tone: 'error', text: languageRef.current === 'ru'
+            ? 'Ключ доступа устарел или неверен. Нажмите «Выйти» и войдите с текущим ключом друзей.'
+            : 'The access key is outdated or invalid. Leave the room and sign in with the current friends key.' })
           return
         }
         setConnection('disconnected')
@@ -123,7 +135,7 @@ export function useChaosSocket(credentials: Credentials | null) {
 
   const send = useCallback((payload: object) => {
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
-      setNotice({ tone: 'error', text: 'Нет соединения с комнатой' })
+      setNotice({ tone: 'error', text: languageRef.current === 'ru' ? 'Нет соединения с комнатой' : 'Not connected to the room' })
       return false
     }
     socketRef.current.send(JSON.stringify(payload))
@@ -150,5 +162,10 @@ export function useChaosSocket(credentials: Credentials | null) {
     send({ type: 'setCooldown', effectId, cooldownSeconds })
   }, [send])
 
-  return { snapshot, connection, notice, clockOffset, trigger, setPaused, blockUser, setCooldown }
+  const hostControl = useCallback((action: 'restart' | 'shutdown') => {
+    setNotice(null)
+    send({ type: 'hostControl', action })
+  }, [send])
+
+  return { snapshot, connection, notice, clockOffset, trigger, setPaused, blockUser, setCooldown, hostControl }
 }

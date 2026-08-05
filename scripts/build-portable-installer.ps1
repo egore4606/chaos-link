@@ -21,6 +21,7 @@ dotnet publish (Join-Path $root 'apps\agent\ChaosLink.Agent.csproj') -c Release 
 
 Copy-Item (Join-Path $root 'ahk\Effects.ahk') (Join-Path $stage 'ahk\Effects.ahk') -Force
 Copy-Item (Join-Path $root 'installer\payload\*.ps1') $stage -Force
+Copy-Item (Join-Path $root 'scripts\control-chaos-link.ps1') (Join-Path $stage 'Control-ChaosLink.ps1') -Force
 Copy-Item (Join-Path $root 'installer\ChaosLink-Uninstall.ps1') (Join-Path $stage 'Uninstall-ChaosLink.ps1') -Force
 Copy-Item (Join-Path $root 'screamer\images\README.md') (Join-Path $stage 'screamer\images\README.md') -Force
 Copy-Item (Join-Path $root 'screamer\sounds\README.md') (Join-Path $stage 'screamer\sounds\README.md') -Force

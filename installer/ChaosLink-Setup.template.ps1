@@ -69,6 +69,7 @@ try {
         ServerUrl='ws://127.0.0.1:5075/ws'; RoomCode=$room; AgentName='Игровой ПК'; AgentToken=$agentToken
         AutoHotkeyPath=$ahkPath; EffectsScript='..\..\ahk\Effects.ahk'
         ScreamerSoundsPath='..\..\screamer\sounds'; ScreamerImagesPath='..\..\screamer\images'
+        HostControlScript='..\..\Control-ChaosLink.ps1'
     } | ConvertTo-Json
     Set-Content (Join-Path $InstallRoot 'app\agent\appsettings.json') $agentConfig -Encoding utf8
     New-Item -ItemType Directory -Force -Path (Join-Path $InstallRoot 'runtime'), (Join-Path $InstallRoot 'screamer\images'), (Join-Path $InstallRoot 'screamer\sounds') | Out-Null

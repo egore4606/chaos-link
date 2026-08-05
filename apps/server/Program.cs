@@ -197,6 +197,12 @@ sealed class RoomCoordinator(IConfiguration configuration, ILogger<RoomCoordinat
             case "setCooldown" when connection.Role == "admin" && message.EffectId is not null && message.CooldownSeconds.HasValue:
                 await SetCooldownAsync(connection, message.EffectId, message.CooldownSeconds.Value, ct);
                 break;
+            case "hostControl" when connection.Role == "admin" && message.Action is not null:
+                await HostControlAsync(connection, message.Action, ct);
+                break;
+            case "hostControl" when connection.Role == "controller":
+                await SendAsync(connection, new { type = "error", code = "admin_required", message = "Системой управляет только администратор" }, ct);
+                break;
             case "ack" when connection.Role == "agent" && message.EventId is not null:
                 await AckAsync(message.EventId, message.Status ?? "executed", message.Detail, ct);
                 break;
@@ -350,6 +356,35 @@ sealed class RoomCoordinator(IConfiguration configuration, ILogger<RoomCoordinat
         await BroadcastSnapshotAsync(ct);
     }
 
+    private async Task HostControlAsync(ClientConnection admin, string action, CancellationToken ct)
+    {
+        action = action.Trim().ToLowerInvariant();
+        if (action is not ("restart" or "shutdown"))
+        {
+            await SendAsync(admin, new { type = "error", code = "invalid_host_action", message = "Неизвестная системная команда" }, ct);
+            return;
+        }
+
+        if (!AgentConnected)
+        {
+            await SendAsync(admin, new { type = "error", code = "host_control_unavailable", message = "Игровой агент не подключён" }, ct);
+            return;
+        }
+
+        lock (_gate)
+        {
+            AddEventLocked(new RoomEvent(
+                Guid.NewGuid().ToString("N"), Now(), admin.Name, "host_control",
+                action == "restart" ? "Перезапуск системы" : "Выключение системы",
+                "executed", action));
+        }
+
+        logger.LogInformation("Host control requested: action={Action}, admin={Admin}", action, admin.Name);
+        await SendAsync(admin, new { type = "hostControlAccepted", action }, ct);
+        await BroadcastSnapshotAsync(ct);
+        await BroadcastAsync(new { type = "hostControl", action }, client => client.Role == "agent", ct);
+    }
+
     private async Task AckAsync(string eventId, string status, string? detail, CancellationToken ct)
     {
         lock (_gate)
@@ -467,6 +502,6 @@ sealed record ClientConnection(string Id, string Role, string Name, WebSocket So
 sealed record EffectDefinition(string Id, string Label, string Category, string Icon, int CooldownSeconds, int DurationSeconds);
 sealed record EffectCommand(string Type, string EventId, string EffectId, int DurationMs, int Seed, long ExecuteAt);
 sealed record RoomEvent(string EventId, long Timestamp, string Actor, string EffectId, string EffectLabel, string Status, string Detail);
-sealed record ClientMessage(string? Type, string? Token, string? EffectId, bool? Paused, string? EventId, string? Status, string? Detail, long? ClientTime, string? TargetClientId, int? CooldownSeconds, int? BlockSeconds);
+sealed record ClientMessage(string? Type, string? Token, string? EffectId, bool? Paused, string? EventId, string? Status, string? Detail, long? ClientTime, string? TargetClientId, int? CooldownSeconds, int? BlockSeconds, string? Action);
 
 public partial class Program { }

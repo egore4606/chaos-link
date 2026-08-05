@@ -127,5 +127,15 @@ messageIndex = agent.messages.length
 first.socket.send(JSON.stringify({ type: 'trigger', effectId: 'grenade_feet' }))
 await waitForNew(agent, messageIndex, message => message.type === 'command' && message.effectId === 'grenade_feet')
 
+messageIndex = first.messages.length
+first.socket.send(JSON.stringify({ type: 'hostControl', action: 'restart' }))
+await waitForNew(first, messageIndex, message => message.type === 'error' && message.code === 'admin_required')
+
+const agentControlIndex = agent.messages.length
+const adminControlIndex = admin.messages.length
+admin.socket.send(JSON.stringify({ type: 'hostControl', action: 'restart' }))
+await waitForNew(admin, adminControlIndex, message => message.type === 'hostControlAccepted' && message.action === 'restart')
+await waitForNew(agent, agentControlIndex, message => message.type === 'hostControl' && message.action === 'restart')
+
 for (const client of [agent, first, second, admin]) client.socket.close()
-console.log('Smoke test passed: admin pause/timed/permanent block, new effects, shared cooldown, atomic race rejection, and agent acknowledgement verified.')
+console.log('Smoke test passed: admin pause/block/host control, new effects, shared cooldown, atomic race rejection, and agent acknowledgement verified.')
