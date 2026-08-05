@@ -122,9 +122,7 @@ DisableKeyBlock() {
 BlockLeftMouse(durationMs) {
     global BlockingLmb
     BlockingLmb := true
-    Hotkey("*LButton", Swallow, "On")
-    Hotkey("*LButton up", Swallow, "On")
-    Send("{LButton up}")
+    SendInput("{LButton down}")
     try Sleep(durationMs)
     finally DisableLeftMouseBlock()
 }
@@ -133,9 +131,7 @@ DisableLeftMouseBlock() {
     global BlockingLmb
     if !BlockingLmb
         return
-    try Hotkey("*LButton", "Off")
-    try Hotkey("*LButton up", "Off")
-    try Send("{LButton up}")
+    try SendInput("{LButton up}")
     BlockingLmb := false
 }
 
@@ -152,26 +148,32 @@ SetMouseMovementBlocked(blocked) {
 
 GrenadeAtFeet() {
     global HeldKeys
-    Send("4")
-    Sleep(300)
-    EnableKeyBlock(["w", "a", "s", "d", "Space", "Shift"])
-    SetMouseMovementBlocked(true)
-    HeldKeys["Ctrl"] := true
-    Send("{Ctrl down}")
     try {
+        ; 1. Take the grenade first and give CS2 enough time to equip it.
+        SendInput("4")
+        Sleep(1800)
+
+        ; 2. Block movement keys and physical camera movement, then look down.
+        EnableKeyBlock(["w", "a", "s", "d", "Space", "Shift", "q", "e", "r", "g", "1", "2", "3", "4", "5"])
+        SetMouseMovementBlocked(true)
         Loop 4 {
             DllCall("mouse_event", "UInt", 0x0001, "Int", 0, "Int", 2200, "UInt", 0, "UPtr", 0)
             Sleep(35)
         }
-        Sleep(120)
-        Send("{RButton down}")
-        Sleep(100)
-        Send("{RButton up}")
-        Sleep(120)
+        Sleep(150)
+
+        ; 3. Crouch for two full seconds. The mouse click is deliberately last.
+        HeldKeys["Ctrl"] := true
+        SendInput("{Ctrl down}")
+        Sleep(2000)
+        SendInput("{RButton down}")
+        Sleep(140)
+        SendInput("{RButton up}")
+        Sleep(150)
     } finally {
-        try Send("{RButton up}")
-        try Send("{Ctrl up}")
-        HeldKeys.Delete("Ctrl")
+        try SendInput("{RButton up}")
+        try SendInput("{Ctrl up}")
+        try HeldKeys.Delete("Ctrl")
         SetMouseMovementBlocked(false)
         DisableKeyBlock()
     }

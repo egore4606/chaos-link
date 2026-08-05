@@ -53,7 +53,7 @@ if ($ps2exeModule) {
         $safeDescription = $description.Replace("'", "''")
         $compileCommand = @"
 Import-Module '$modulePath' -Force
-Invoke-ps2exe -inputFile '$inputPath' -outputFile '$compiledPath' -x64 -STA -requireAdmin -supportOS -title '$safeTitle' -description '$safeDescription' -company 'Chaos Link' -product 'Chaos Link' -version '0.3.0.0'
+Invoke-ps2exe -inputFile '$inputPath' -outputFile '$compiledPath' -x64 -STA -requireAdmin -supportOS -title '$safeTitle' -description '$safeDescription' -company 'Chaos Link' -product 'Chaos Link' -version '0.4.0.0'
 if (-not (Test-Path -LiteralPath '$compiledPath')) { exit 1 }
 "@
         $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($compileCommand))
