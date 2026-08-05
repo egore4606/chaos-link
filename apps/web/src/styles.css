@@ -41,15 +41,18 @@ body::before {
 .agent-status { display: flex; align-items: center; gap: 12px; margin-right: auto; }
 .agent-status svg { color: #65717e; width: 21px; }
 .agent-status.online svg { color: var(--lime); }
-.agent-status div, .controller div:last-child { display: grid; gap: 3px; }
+.agent-status div, .controller-copy { display: grid; gap: 3px; }
 .agent-status strong { font-size: 14px; }
 .controller-list { display: flex; gap: 22px; max-width: 42vw; overflow-x: auto; padding-bottom: 3px; }
 .controller { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; border: 0; padding: 0; background: transparent; text-align: left; }
-.controller:not(:disabled) { cursor: pointer; }
 .controller.blocked .avatar { background: var(--red); color: white; }
 .controller.blocked i { background: var(--red); }
 .controller span { display: flex; align-items: center; gap: 5px; }
 .controller i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+.controller-actions { display: flex; gap: 4px; margin-left: 3px; }
+.controller-actions button { height: 27px; padding: 0 7px; border: 1px solid #52606e; border-radius: 5px; background: #111b26; color: #cbd2d8; font-size: 9px; cursor: pointer; white-space: nowrap; }
+.controller-actions button:hover { border-color: var(--lime); color: var(--lime); }
+.controller.blocked .controller-actions button { border-color: rgba(239,57,72,.55); color: #ff8b94; }
 .avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: #09110b; background: var(--lime); font-weight: 800; }
 .avatar.small { width: 34px; height: 34px; flex: 0 0 auto; }
 .icon-button { border: 0; background: transparent; color: var(--muted); padding: 10px; cursor: pointer; }
@@ -150,6 +153,8 @@ body::before {
   .controller-list { order: 6; display: flex; width: 100%; max-width: 100%; gap: 18px; }
   .controller .avatar { width: 31px; height: 31px; font-size: 12px; }
   .controller strong { font-size: 12px; }
+  .controller { flex-wrap: wrap; max-width: 220px; }
+  .controller-actions { flex-basis: 100%; margin-left: 40px; }
   .icon-button { margin-left: auto; }
   .system-strip { margin-top: 14px; padding: 18px; display: grid; min-height: auto; }
   .system-icon { width: 46px; height: 46px; flex: 0 0 auto; }

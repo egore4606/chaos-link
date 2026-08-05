@@ -45,7 +45,7 @@ export default function App() {
         roomCode={snapshot?.roomCode ?? credentials.room}
         agentConnected={snapshot?.agentConnected ?? false}
         connection={connection}
-        controllers={snapshot?.controllers ?? [{ id: 'self', name: credentials.name, role: credentials.role, blockedUntil: 0 }]}
+        controllers={snapshot?.controllers ?? [{ id: 'self', name: credentials.name, role: credentials.role, blockedUntil: 0, blockedPermanently: false }]}
         now={now}
         isAdmin={isAdmin}
         onBlockUser={blockUser}
@@ -128,7 +128,7 @@ function Header({ roomCode, agentConnected, connection, controllers, now, isAdmi
   controllers: Controller[]
   now: number
   isAdmin: boolean
-  onBlockUser: (id: string) => void
+  onBlockUser: (id: string, blockSeconds: number) => void
   onDisconnect: () => void
 }) {
   return (
@@ -137,22 +137,37 @@ function Header({ roomCode, agentConnected, connection, controllers, now, isAdmi
       <div className="room-code"><span>Код комнаты</span><strong>{roomCode}</strong></div>
       <div className={`agent-status ${agentConnected ? 'online' : ''}`}>
         {agentConnected ? <Wifi /> : <WifiOff />}
-        <div><strong>{agentConnected ? 'Игровой ПК подключён' : 'Игровой ПК не подключён'}</strong><span>{connection === 'connected' ? 'Связь с комнатой установлена' : 'Переподключение…'}</span></div>
+        <div><strong>{agentConnected ? 'Игровой ПК подключён' : 'Игровой ПК не подключён'}</strong><span>{connection === 'connected' ? 'Связь с комнатой установлена' : connection === 'error' ? 'Ошибка подключения' : 'Переподключение…'}</span></div>
       </div>
       <div className="controller-list">
-        {controllers.map(controller => (
-          <button
-            type="button"
-            className={`controller ${controller.blockedUntil > now ? 'blocked' : ''}`}
-            key={controller.id}
-            disabled={!isAdmin || controller.role === 'admin' || controller.blockedUntil > now}
-            onClick={() => onBlockUser(controller.id)}
-            title={isAdmin && controller.role === 'controller' ? 'Заблокировать команды на 30 секунд' : undefined}
-          >
-            <div className="avatar">{controller.name.slice(0, 1).toUpperCase()}</div>
-            <div><strong>{controller.name}</strong><span><i />{controller.role === 'admin' ? 'Администратор' : controller.blockedUntil > now ? `Блок · ${Math.ceil((controller.blockedUntil - now) / 1000)} с` : isAdmin ? 'Нажать для блокировки' : 'Онлайн'}</span></div>
-          </button>
-        ))}
+        {controllers.map(controller => {
+          const blocked = controller.blockedPermanently || controller.blockedUntil > now
+          const status = controller.role === 'admin'
+            ? 'Администратор'
+            : controller.blockedPermanently
+              ? 'Заблокирован навсегда'
+              : controller.blockedUntil > now
+                ? `Блок · ${Math.ceil((controller.blockedUntil - now) / 1000)} с`
+                : 'Онлайн'
+          return (
+            <div className={`controller ${blocked ? 'blocked' : ''}`} key={controller.id}>
+              <div className="avatar">{controller.name.slice(0, 1).toUpperCase()}</div>
+              <div className="controller-copy"><strong>{controller.name}</strong><span><i />{status}</span></div>
+              {isAdmin && controller.role === 'controller' && (
+                <div className="controller-actions">
+                  {blocked ? (
+                    <button type="button" onClick={() => onBlockUser(controller.id, 0)}>Разблокировать</button>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => onBlockUser(controller.id, 30)}>30 сек</button>
+                      <button type="button" onClick={() => onBlockUser(controller.id, -1)}>Навсегда</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
       <button className="icon-button" onClick={onDisconnect} aria-label="Выйти из комнаты" title="Выйти из комнаты"><LogOut /></button>
     </header>

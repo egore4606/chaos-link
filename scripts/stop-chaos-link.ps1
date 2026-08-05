@@ -17,6 +17,16 @@ if (-not $isAdministrator) {
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $runtimeRoot = Join-Path $projectRoot '.runtime'
 
+$monitorPidFile = Join-Path $runtimeRoot 'log-monitor.pid'
+if (Test-Path -LiteralPath $monitorPidFile) {
+    $monitorPid = [int](Get-Content -LiteralPath $monitorPidFile -Raw)
+    $monitorProcess = Get-Process -Id $monitorPid -ErrorAction SilentlyContinue
+    if ($monitorProcess -and $monitorProcess.ProcessName -in @('pwsh', 'powershell')) {
+        Stop-Process -Id $monitorPid -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item -LiteralPath $monitorPidFile -Force -ErrorAction SilentlyContinue
+}
+
 foreach ($name in @('agent', 'server')) {
     $pidFile = Join-Path $runtimeRoot "$name.pid"
     if (-not (Test-Path -LiteralPath $pidFile)) { continue }

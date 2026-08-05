@@ -25,7 +25,9 @@
 
 ```json
 { "type": "pause", "paused": true }
-{ "type": "blockUser", "targetClientId": "..." }
+{ "type": "blockUser", "targetClientId": "...", "blockSeconds": 30 }
+{ "type": "blockUser", "targetClientId": "...", "blockSeconds": -1 }
+{ "type": "blockUser", "targetClientId": "...", "blockSeconds": 0 }
 { "type": "setCooldown", "effectId": "reload", "cooldownSeconds": 15 }
 ```
 
@@ -39,5 +41,5 @@
 Каждый принятый запуск получает уникальный `eventId`, серверное значение
 `nextAvailableAt` и значение `executeAt`. Изменение комнаты защищено блокировкой,
 поэтому два одновременных запроса контроллеров не могут оба запустить один эффект.
-Блокировка пользователя длится 30 секунд, а кулдаун может принимать значения
-от 0 до 3600 секунд.
+`blockSeconds` равен `30` для временной блокировки, `-1` для блокировки до ручного
+снятия и `0` для разблокировки. Кулдаун может принимать значения от 0 до 3600 секунд.

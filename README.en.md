@@ -21,8 +21,8 @@ Chaos Link turns an ordinary game with friends into a shared chaos challenge. Ru
 
 - Any number of browser controllers in one room
 - Shared server-authoritative cooldowns
-- Admin pause, per-effect cooldown settings, and temporary guest blocks
-- Nine allow-listed AutoHotkey v2 effects
+- Admin pause, per-effect cooldown settings, and timed, permanent, or manually released guest blocks
+- Eleven allow-listed AutoHotkey v2 effects, including fire blocking and a grenade-under-feet sequence
 - User-managed random screamer images and sounds
 - LAN access and an optional temporary Cloudflare Quick Tunnel
 - One-file Windows installer with Start, Stop, and Uninstall shortcuts

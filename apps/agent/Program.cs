@@ -93,7 +93,7 @@ sealed class AhkRunner : IDisposable
     private static readonly HashSet<string> AllowedEffects =
     [
         "knife", "reload", "jump", "drop_weapon", "mouse_jerk",
-        "hold_ctrl", "block_wasd", "flash", "screamer"
+        "hold_ctrl", "block_wasd", "block_lmb", "grenade_feet", "flash", "screamer"
     ];
 
     private readonly AgentConfig _config;
@@ -126,8 +126,7 @@ sealed class AhkRunner : IDisposable
             startInfo.ArgumentList.Add(command.Seed.ToString());
             if (command.EffectId == "screamer")
             {
-                var soundPath = ChooseRandomFile(_config.ScreamerSoundsPath, [".wav", ".mp3", ".wma", ".m4a"]);
-                var imagePath = ChooseRandomFile(_config.ScreamerImagesPath, [".png"]);
+                var (imagePath, soundPath) = ChooseScreamerMedia();
                 startInfo.ArgumentList.Add("--sound");
                 startInfo.ArgumentList.Add(soundPath ?? "");
                 startInfo.ArgumentList.Add("--image");
@@ -203,6 +202,37 @@ sealed class AhkRunner : IDisposable
             .Where(file => allowedExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
             .ToArray();
         return files.Length == 0 ? null : files[Random.Shared.Next(files.Length)];
+    }
+
+    private (string? ImagePath, string? SoundPath) ChooseScreamerMedia()
+    {
+        string[] imageExtensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff", ".ico"];
+        string[] soundExtensions = [".wav", ".mp3", ".wma", ".m4a", ".aac"];
+        var imageDirectory = ResolveOptionalPath(_config.ScreamerImagesPath);
+        var soundDirectory = ResolveOptionalPath(_config.ScreamerSoundsPath);
+
+        var images = Directory.Exists(imageDirectory)
+            ? Directory.EnumerateFiles(imageDirectory)
+                .Where(file => imageExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                .ToArray()
+            : [];
+        var sounds = Directory.Exists(soundDirectory)
+            ? Directory.EnumerateFiles(soundDirectory)
+                .Where(file => soundExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                .ToArray()
+            : [];
+
+        var imagePath = images.Length == 0 ? null : images[Random.Shared.Next(images.Length)];
+        if (imagePath is null)
+            return (null, sounds.Length == 0 ? null : sounds[Random.Shared.Next(sounds.Length)]);
+
+        var imageName = Path.GetFileNameWithoutExtension(imagePath);
+        var matchingSounds = sounds
+            .Where(sound => Path.GetFileNameWithoutExtension(sound).Equals(imageName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var soundPool = matchingSounds.Length > 0 ? matchingSounds : sounds;
+        var soundPath = soundPool.Length == 0 ? null : soundPool[Random.Shared.Next(soundPool.Length)];
+        return (imagePath, soundPath);
     }
 
     private string ResolveAutoHotkeyPath()

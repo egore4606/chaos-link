@@ -5,6 +5,7 @@ export interface Controller {
   name: string
   role: 'controller' | 'admin'
   blockedUntil: number
+  blockedPermanently: boolean
 }
 
 export interface Effect {

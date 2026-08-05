@@ -51,13 +51,35 @@ $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/health" -TimeoutSec
 
 if (-not $SkipAgent) {
     & (Join-Path $PSScriptRoot 'start-agent-admin.ps1') -Port $Port
-    $agentPid = [int](Get-Content -LiteralPath (Join-Path $runtimeRoot 'agent.pid') -Raw)
-    $agent = Get-Process -Id $agentPid -ErrorAction SilentlyContinue
+    $agentPidFile = Join-Path $runtimeRoot 'agent.pid'
+    $agent = $null
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
+        if (Test-Path -LiteralPath $agentPidFile) {
+            $agentPid = [int](Get-Content -LiteralPath $agentPidFile -Raw)
+            $agent = Get-Process -Id $agentPid -ErrorAction SilentlyContinue
+            if ($agent) { break }
+        }
+        Start-Sleep -Milliseconds 250
+    }
     if (-not $agent) {
         Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
         $details = Get-Content -LiteralPath (Join-Path $runtimeRoot 'agent.err.log') -Raw -ErrorAction SilentlyContinue
         throw "Chaos Link Agent не запустился. $details"
     }
+}
+
+$monitorPidFile = Join-Path $runtimeRoot 'log-monitor.pid'
+$monitorRunning = $false
+if (Test-Path -LiteralPath $monitorPidFile) {
+    $monitorPid = [int](Get-Content -LiteralPath $monitorPidFile -Raw)
+    $monitorRunning = [bool](Get-Process -Id $monitorPid -ErrorAction SilentlyContinue)
+}
+if (-not $monitorRunning) {
+    $monitor = Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'watch-chaos-link.ps1')`"") `
+        -WorkingDirectory $projectRoot `
+        -PassThru
+    Set-Content -LiteralPath $monitorPidFile -Value $monitor.Id -Encoding ascii
 }
 
 Write-Host "Chaos Link запущен: http://127.0.0.1:$Port"

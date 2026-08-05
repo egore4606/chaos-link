@@ -1,9 +1,12 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Off
-global BlockingWasd := false
+global BlockedKeys := []
+global BlockingLmb := false
+global MouseMovementBlocked := false
+global HeldKeys := Map()
 
-OnExit((*) => ReleaseEverything())
-Hotkey("^+F12", (*) => ExitApp(2))
+OnExit((*) => CleanupEffect())
+Hotkey("^+F12", EmergencyExit)
 
 effectId := GetArg("--effect")
 if effectId = "" {
@@ -30,6 +33,8 @@ ExecuteEffect(effectId, durationMs, seed, soundPath, imagePath) {
             case "mouse_jerk": MouseJerk(seed)
             case "hold_ctrl": HoldKey("Ctrl", Max(durationMs, 1000))
             case "block_wasd": BlockWasd(Max(durationMs, 1000))
+            case "block_lmb": BlockLeftMouse(Max(durationMs, 1000))
+            case "grenade_feet": GrenadeAtFeet()
             case "flash": FlashOverlay(Max(durationMs, 1000))
             case "screamer": ScreamerOverlay(Max(durationMs, 1000), soundPath, imagePath)
             default: throw Error("Эффект отсутствует в AHK")
@@ -47,9 +52,14 @@ WriteLog(message) {
 }
 
 HoldKey(key, durationMs) {
+    global HeldKeys
+    HeldKeys[key] := true
     Send("{" key " down}")
     try Sleep(durationMs)
-    finally Send("{" key " up}")
+    finally {
+        Send("{" key " up}")
+        HeldKeys.Delete(key)
+    }
 }
 
 PressKnife() {
@@ -77,31 +87,94 @@ MouseJerk(seed) {
 }
 
 BlockWasd(durationMs) {
-    global BlockingWasd
-    if BlockingWasd
-        return
-    BlockingWasd := true
-    keys := ["w", "a", "s", "d"]
-    for key in keys {
-        Hotkey("*" key, Swallow, "On")
-        Hotkey("*" key " up", Swallow, "On")
-        Send("{" key " up}")
-    }
+    EnableKeyBlock(["w", "a", "s", "d"])
     try Sleep(durationMs)
-    finally DisableWasdBlock()
+    finally DisableKeyBlock()
 }
 
 Swallow(*) {
 }
 
-DisableWasdBlock() {
-    global BlockingWasd
-    for key in ["w", "a", "s", "d"] {
+EnableKeyBlock(keys) {
+    global BlockedKeys
+    if BlockedKeys.Length > 0
+        return
+    BlockedKeys := keys.Clone()
+    for key in BlockedKeys {
+        Hotkey("*" key, Swallow, "On")
+        Hotkey("*" key " up", Swallow, "On")
+        Send("{" key " up}")
+    }
+}
+
+DisableKeyBlock() {
+    global BlockedKeys
+    if BlockedKeys.Length = 0
+        return
+    for key in BlockedKeys {
         try Hotkey("*" key, "Off")
         try Hotkey("*" key " up", "Off")
         try Send("{" key " up}")
     }
-    BlockingWasd := false
+    BlockedKeys := []
+}
+
+BlockLeftMouse(durationMs) {
+    global BlockingLmb
+    BlockingLmb := true
+    Hotkey("*LButton", Swallow, "On")
+    Hotkey("*LButton up", Swallow, "On")
+    Send("{LButton up}")
+    try Sleep(durationMs)
+    finally DisableLeftMouseBlock()
+}
+
+DisableLeftMouseBlock() {
+    global BlockingLmb
+    if !BlockingLmb
+        return
+    try Hotkey("*LButton", "Off")
+    try Hotkey("*LButton up", "Off")
+    try Send("{LButton up}")
+    BlockingLmb := false
+}
+
+SetMouseMovementBlocked(blocked) {
+    global MouseMovementBlocked
+    if blocked {
+        BlockInput("MouseMove")
+        MouseMovementBlocked := true
+    } else if MouseMovementBlocked {
+        BlockInput("MouseMoveOff")
+        MouseMovementBlocked := false
+    }
+}
+
+GrenadeAtFeet() {
+    global HeldKeys
+    Send("4")
+    Sleep(300)
+    EnableKeyBlock(["w", "a", "s", "d", "Space", "Shift"])
+    SetMouseMovementBlocked(true)
+    HeldKeys["Ctrl"] := true
+    Send("{Ctrl down}")
+    try {
+        Loop 4 {
+            DllCall("mouse_event", "UInt", 0x0001, "Int", 0, "Int", 2200, "UInt", 0, "UPtr", 0)
+            Sleep(35)
+        }
+        Sleep(120)
+        Send("{RButton down}")
+        Sleep(100)
+        Send("{RButton up}")
+        Sleep(120)
+    } finally {
+        try Send("{RButton up}")
+        try Send("{Ctrl up}")
+        HeldKeys.Delete("Ctrl")
+        SetMouseMovementBlocked(false)
+        DisableKeyBlock()
+    }
 }
 
 FlashOverlay(durationMs) {
@@ -116,9 +189,17 @@ FlashOverlay(durationMs) {
 ScreamerOverlay(durationMs, soundPath, imagePath) {
     overlay := Gui("+AlwaysOnTop -Caption +ToolWindow")
     overlay.BackColor := "090909"
-    if imagePath != "" && FileExist(imagePath)
-        overlay.AddPicture("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight, imagePath)
-    else {
+    imageAdded := false
+    if imagePath != "" && FileExist(imagePath) {
+        extension := StrLower(RegExReplace(imagePath, "^.*\."))
+        if extension = "gif"
+            imageAdded := AddAnimatedGif(overlay, imagePath)
+        if !imageAdded {
+            overlay.AddPicture("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight, imagePath)
+            imageAdded := true
+        }
+    }
+    if !imageAdded {
         overlay.SetFont("s180 cF03A47 Bold", "Segoe UI")
         overlay.AddText("Center x0 y" Floor(A_ScreenHeight / 2 - 160) " w" A_ScreenWidth, "!")
     }
@@ -133,10 +214,53 @@ ScreamerOverlay(durationMs, soundPath, imagePath) {
     finally overlay.Destroy()
 }
 
+AddAnimatedGif(overlay, imagePath) {
+    try {
+        browser := overlay.AddActiveX("x0 y0 w" A_ScreenWidth " h" A_ScreenHeight, "Shell.Explorer").Value
+        browser.Silent := true
+        browser.Navigate("about:blank")
+        deadline := A_TickCount + 1500
+        while browser.ReadyState != 4 && A_TickCount < deadline
+            Sleep(10)
+        imageUrl := PathToFileUrl(imagePath)
+        html := "<!doctype html><html><head><meta http-equiv='X-UA-Compatible' content='IE=edge'><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090909}img{width:100%;height:100%;object-fit:cover}</style></head><body><img src='" imageUrl "'></body></html>"
+        browser.Document.Open()
+        browser.Document.Write(html)
+        browser.Document.Close()
+        return true
+    } catch {
+        return false
+    }
+}
+
+PathToFileUrl(path) {
+    path := StrReplace(path, "%", "%25")
+    path := StrReplace(path, " ", "%20")
+    path := StrReplace(path, "#", "%23")
+    path := StrReplace(path, "&", "%26")
+    path := StrReplace(path, "'", "%27")
+    return "file:///" StrReplace(path, "\", "/")
+}
+
+CleanupEffect() {
+    global HeldKeys
+    try DisableKeyBlock()
+    try DisableLeftMouseBlock()
+    try SetMouseMovementBlocked(false)
+    for key in HeldKeys.Clone()
+        try Send("{" key " up}")
+    HeldKeys.Clear()
+}
+
 ReleaseEverything() {
-    try DisableWasdBlock()
+    CleanupEffect()
     for key in ["Ctrl", "Shift", "Alt", "Space", "LButton", "RButton", "w", "a", "s", "d"]
         try Send("{" key " up}")
+}
+
+EmergencyExit(*) {
+    ReleaseEverything()
+    ExitApp(2)
 }
 
 GetArg(name) {

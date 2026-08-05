@@ -36,6 +36,22 @@ function waitFor(client, predicate, timeout = 2500) {
   })
 }
 
+function waitForNew(client, startIndex, predicate, timeout = 2500) {
+  return new Promise((resolve, reject) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      const found = client.messages.slice(startIndex).find(predicate)
+      if (found) {
+        clearInterval(timer)
+        resolve(found)
+      } else if (Date.now() - started > timeout) {
+        clearInterval(timer)
+        reject(new Error('Timed out waiting for new WebSocket message'))
+      }
+    }, 20)
+  })
+}
+
 const agent = await connect('agent', 'Test PC', 'agent-secret')
 const first = await connect('controller', 'Егор', 'friend-access')
 const second = await connect('controller', 'Макс', 'friend-access')
@@ -91,5 +107,25 @@ second.socket.send(JSON.stringify({ type: 'trigger', effectId: 'drop_weapon' }))
 const blocked = await waitFor(second, message => message.type === 'triggerRejected' && message.effectId === 'drop_weapon')
 assert.equal(blocked.code, 'user_blocked')
 
+let messageIndex = admin.messages.length
+admin.socket.send(JSON.stringify({ type: 'blockUser', targetClientId: secondId, blockSeconds: 0 }))
+await waitForNew(admin, messageIndex, message => message.type === 'snapshot' && message.controllers.some(controller => controller.id === secondId && controller.blockedUntil === 0))
+
+messageIndex = admin.messages.length
+admin.socket.send(JSON.stringify({ type: 'blockUser', targetClientId: secondId, blockSeconds: -1 }))
+await waitForNew(admin, messageIndex, message => message.type === 'snapshot' && message.controllers.some(controller => controller.id === secondId && controller.blockedPermanently))
+
+messageIndex = admin.messages.length
+admin.socket.send(JSON.stringify({ type: 'blockUser', targetClientId: secondId, blockSeconds: 0 }))
+await waitForNew(admin, messageIndex, message => message.type === 'snapshot' && message.controllers.some(controller => controller.id === secondId && !controller.blockedPermanently && controller.blockedUntil === 0))
+
+messageIndex = agent.messages.length
+first.socket.send(JSON.stringify({ type: 'trigger', effectId: 'block_lmb' }))
+await waitForNew(agent, messageIndex, message => message.type === 'command' && message.effectId === 'block_lmb')
+
+messageIndex = agent.messages.length
+first.socket.send(JSON.stringify({ type: 'trigger', effectId: 'grenade_feet' }))
+await waitForNew(agent, messageIndex, message => message.type === 'command' && message.effectId === 'grenade_feet')
+
 for (const client of [agent, first, second, admin]) client.socket.close()
-console.log('Smoke test passed: admin pause/block/cooldown, shared cooldown, atomic race rejection, and agent acknowledgement verified.')
+console.log('Smoke test passed: admin pause/timed/permanent block, new effects, shared cooldown, atomic race rejection, and agent acknowledgement verified.')

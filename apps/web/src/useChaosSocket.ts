@@ -13,10 +13,27 @@ export function useChaosSocket(credentials: Credentials | null) {
   useEffect(() => {
     if (!credentials) return
     let retryTimer: number | undefined
+    let connectTimer: number | undefined
+    let heartbeatTimer: number | undefined
     let stopped = false
+    let retryAllowed = true
+
+    const clearSocketTimers = () => {
+      window.clearTimeout(connectTimer)
+      window.clearInterval(heartbeatTimer)
+    }
+
+    const scheduleReconnect = () => {
+      if (stopped || !retryAllowed || retryTimer !== undefined) return
+      retryTimer = window.setTimeout(() => {
+        retryTimer = undefined
+        connect()
+      }, 1500)
+    }
 
     const connect = () => {
       if (stopped) return
+      clearSocketTimers()
       setConnection('connecting')
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const url = new URL(`${protocol}//${window.location.host}/ws`)
@@ -25,14 +42,34 @@ export function useChaosSocket(credentials: Credentials | null) {
       url.searchParams.set('name', credentials.name)
       const socket = new WebSocket(url)
       socketRef.current = socket
+      let lastMessageAt = Date.now()
+
+      connectTimer = window.setTimeout(() => {
+        if (socketRef.current === socket && socket.readyState !== WebSocket.OPEN) {
+          socket.close()
+          scheduleReconnect()
+        }
+      }, 8000)
 
       socket.onopen = () => {
+        if (socketRef.current !== socket) return
+        window.clearTimeout(connectTimer)
         setConnection('connected')
         setNotice(null)
         socket.send(JSON.stringify({ type: 'auth', token: credentials.token }))
         socket.send(JSON.stringify({ type: 'ping', clientTime: Date.now() }))
+        heartbeatTimer = window.setInterval(() => {
+          if (socketRef.current !== socket || socket.readyState !== WebSocket.OPEN) return
+          if (Date.now() - lastMessageAt > 30000) {
+            socket.close(4000, 'Heartbeat timeout')
+            return
+          }
+          socket.send(JSON.stringify({ type: 'ping', clientTime: Date.now() }))
+        }, 10000)
       }
       socket.onmessage = (event) => {
+        if (socketRef.current !== socket) return
+        lastMessageAt = Date.now()
         const message = JSON.parse(event.data)
         if (message.type === 'snapshot') {
           setSnapshot(message)
@@ -44,17 +81,41 @@ export function useChaosSocket(credentials: Credentials | null) {
           setNotice({ tone: 'error', text: message.message })
         }
       }
-      socket.onerror = () => setConnection('error')
-      socket.onclose = () => {
+      socket.onerror = () => {
+        if (socketRef.current === socket) setConnection('error')
+      }
+      socket.onclose = (event) => {
+        clearSocketTimers()
+        if (socketRef.current !== socket) return
+        socketRef.current = null
+        if (event.code === 1008) {
+          retryAllowed = false
+          setConnection('error')
+          setNotice({ tone: 'error', text: 'Ключ доступа устарел или неверен. Нажмите «Выйти» и войдите с текущим ключом друзей.' })
+          return
+        }
         setConnection('disconnected')
-        if (!stopped) retryTimer = window.setTimeout(connect, 2500)
+        scheduleReconnect()
       }
     }
 
+    const reconnectWhenVisible = () => {
+      if (document.visibilityState !== 'visible' || !retryAllowed) return
+      const socket = socketRef.current
+      if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+        window.clearTimeout(retryTimer)
+        retryTimer = undefined
+        connect()
+      }
+    }
+
+    document.addEventListener('visibilitychange', reconnectWhenVisible)
     connect()
     return () => {
       stopped = true
       window.clearTimeout(retryTimer)
+      clearSocketTimers()
+      document.removeEventListener('visibilitychange', reconnectWhenVisible)
       socketRef.current?.close()
       socketRef.current = null
     }
@@ -79,9 +140,9 @@ export function useChaosSocket(credentials: Credentials | null) {
     send({ type: 'pause', paused })
   }, [send])
 
-  const blockUser = useCallback((targetClientId: string) => {
+  const blockUser = useCallback((targetClientId: string, blockSeconds: number) => {
     setNotice(null)
-    send({ type: 'blockUser', targetClientId })
+    send({ type: 'blockUser', targetClientId, blockSeconds })
   }, [send])
 
   const setCooldown = useCallback((effectId: string, cooldownSeconds: number) => {

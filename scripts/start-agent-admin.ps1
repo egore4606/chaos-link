@@ -7,13 +7,11 @@ $currentPrincipal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
 $isAdministrator = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdministrator) {
-    $elevated = Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
+    Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Port', $Port) `
         -Verb RunAs `
-        -WindowStyle Hidden `
-        -Wait `
-        -PassThru
-    exit $elevated.ExitCode
+        -WindowStyle Hidden | Out-Null
+    return
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot

@@ -1,11 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
   ArrowUp,
+  Bomb,
   Check,
   CirclePause,
   Crosshair,
   Keyboard,
   LogOut,
+  MousePointer2,
   RefreshCcw,
   RotateCcw,
   ShieldAlert,
@@ -25,6 +27,8 @@ export const effectIcons: Record<string, typeof Sword> = {
   mouse_jerk: Crosshair,
   hold_ctrl: CirclePause,
   block_wasd: Keyboard,
+  block_lmb: MousePointer2,
+  grenade_feet: Bomb,
   flash: Sun,
   screamer: Volume2,
 }
