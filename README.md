@@ -1,19 +1,19 @@
 # Chaos Link
 
-**A synchronized web control panel for consent-based CS2 chaos sessions.**
+**Let your friends sabotage your CS2 session from their phones in real time.**
 
 [![CI](https://github.com/egore4606/chaos-link/actions/workflows/ci.yml/badge.svg)](https://github.com/egore4606/chaos-link/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/egore4606/chaos-link)](https://github.com/egore4606/chaos-link/releases/latest)
 [![Windows](https://img.shields.io/badge/host-Windows-0078D4?logo=windows)](#requirements)
 
-Chaos Link lets several friends trigger game effects from the same responsive web room while one consenting Windows gaming PC runs a tightly scoped local agent. The server owns room state, shared cooldowns, temporary user blocks, and execution timing, so every controller stays in sync.
+Chaos Link turns an ordinary game with friends into a shared chaos challenge. You run it on the consenting player's Windows PC, send the room link to your friends, and they use their phones or browsers to make the match harder at the worst possible moment: force a jump or reload, pull out the knife, jerk the aim, block movement, flash the screen, or trigger a random screamer. Everyone sees the same cooldowns, so the group plays against the victim rather than spamming disconnected controls.
 
 > [!IMPORTANT]
 > Chaos Link intentionally affects keyboard, mouse, screen, and audio input on the host PC. Install and run it only with the gaming-PC owner's informed permission. It has no autostart, hidden service, remote shell, DLL injection, or game-memory access.
 
 ![Chaos Link desktop and mobile control panel](docs/ui-concept.png)
 
-## Highlights
+## What your friends can do
 
 - Any number of browser controllers in one room
 - Server-authoritative cooldowns shared in real time
