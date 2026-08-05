@@ -10,87 +10,138 @@ $runtime = Join-Path $root 'runtime'
 $dotnet = Join-Path $root 'dotnet\dotnet.exe'
 $serverDll = Join-Path $root 'app\server\ChaosLink.Server.dll'
 $cloudflared = Join-Path $root 'tools\cloudflared.exe'
-New-Item -ItemType Directory -Force -Path $runtime | Out-Null
-
-function Stop-StartedProcess($process, $pidFile) {
-    if ($process -and -not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    }
-    Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
-}
-
-$managedNames = if ($ReuseTunnel) { @('server') } else { @('server', 'tunnel') }
-foreach ($name in $managedNames) {
-    $pidFile = Join-Path $runtime "$name.pid"
-    if (Test-Path $pidFile) {
-        $oldId = [int](Get-Content $pidFile -Raw)
-        if (Get-Process -Id $oldId -ErrorAction SilentlyContinue) {
-            throw "Chaos Link уже запущен. Сначала используйте ярлык остановки."
-        }
-        Remove-Item $pidFile -Force
-    }
-}
-
-$server = $null
-$tunnel = $null
 $serverPidFile = Join-Path $runtime 'server.pid'
 $tunnelPidFile = Join-Path $runtime 'tunnel.pid'
-try {
-    $server = Start-Process -FilePath $dotnet `
-        -ArgumentList @($serverDll, '--urls', "http://0.0.0.0:$Port") `
-        -WorkingDirectory (Join-Path $root 'app\server') `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput (Join-Path $runtime 'server.out.log') `
-        -RedirectStandardError (Join-Path $runtime 'server.err.log') `
-        -PassThru
-    Set-Content $serverPidFile $server.Id -Encoding ascii
+$agentPidFile = Join-Path $runtime 'agent.pid'
+$accessPath = Join-Path $runtime 'access.json'
+$tunnelOut = Join-Path $runtime 'tunnel.out.log'
+$tunnelErr = Join-Path $runtime 'tunnel.err.log'
+New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 
-    $ready = $false
+function Get-TrackedProcess([string]$pidFile) {
+    if (-not (Test-Path -LiteralPath $pidFile)) { return $null }
+    try {
+        $trackedId = [int](Get-Content -LiteralPath $pidFile -Raw)
+        $process = Get-Process -Id $trackedId -ErrorAction SilentlyContinue
+        if ($process) { return $process }
+    } catch {}
+    Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+    return $null
+}
+
+function Wait-ForServer {
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
         try {
             $health = Invoke-RestMethod "http://127.0.0.1:$Port/api/health" -TimeoutSec 2
-            if ($health.status -eq 'ok') { $ready = $true; break }
+            if ($health.status -eq 'ok') { return $health }
         } catch {}
         Start-Sleep -Milliseconds 300
     }
-    if (-not $ready) { throw 'Сервер не запустился. Проверьте runtime\server.err.log.' }
+    return $null
+}
 
-    $publicUrl = $null
-    if ($ReuseTunnel) {
-        $accessBeforeRestart = Get-Content (Join-Path $runtime 'access.json') -Raw | ConvertFrom-Json
-        $publicUrl = $accessBeforeRestart.PublicUrl
+function Find-PublicUrl {
+    if (Test-Path -LiteralPath $accessPath) {
+        try {
+            $saved = Get-Content -LiteralPath $accessPath -Raw | ConvertFrom-Json
+            if ($saved.PublicUrl -match '^https://[a-z0-9-]+\.trycloudflare\.com/?$') {
+                return $Matches[0].TrimEnd('/')
+            }
+        } catch {}
+    }
+
+    $text = ''
+    foreach ($logPath in @($tunnelOut, $tunnelErr)) {
+        if (Test-Path -LiteralPath $logPath) {
+            $text += "`n" + (Get-Content -LiteralPath $logPath -Raw -ErrorAction SilentlyContinue)
+        }
+    }
+    if ($text -match 'https://[a-z0-9-]+\.trycloudflare\.com') { return $Matches[0] }
+    return $null
+}
+
+function Save-PublicUrl([string]$url) {
+    $access = Get-Content -LiteralPath $accessPath -Raw | ConvertFrom-Json
+    $access | Add-Member -NotePropertyName PublicUrl -NotePropertyValue $url -Force
+    $access | ConvertTo-Json | Set-Content -LiteralPath $accessPath -Encoding utf8
+    return $access
+}
+
+$startedServer = $null
+$startedTunnel = $null
+try {
+    $server = Get-TrackedProcess $serverPidFile
+    $health = if ($server) { Wait-ForServer } else { $null }
+    if ($server -and -not $health) {
+        Write-Host 'Найден зависший сервер. Перезапускаю его...' -ForegroundColor Yellow
+        Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $serverPidFile -Force -ErrorAction SilentlyContinue
+        $server = $null
+    }
+    if (-not $server) {
+        Write-Host 'Запуск локального сервера...'
+        $startedServer = Start-Process -FilePath $dotnet `
+            -ArgumentList @($serverDll, '--urls', "http://0.0.0.0:$Port") `
+            -WorkingDirectory (Join-Path $root 'app\server') `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $runtime 'server.out.log') `
+            -RedirectStandardError (Join-Path $runtime 'server.err.log') `
+            -PassThru
+        Set-Content -LiteralPath $serverPidFile -Value $startedServer.Id -Encoding ascii
+        $health = Wait-ForServer
     } else {
-        $tunnelOut = Join-Path $runtime 'tunnel.out.log'
-        $tunnelErr = Join-Path $runtime 'tunnel.err.log'
-        $tunnel = Start-Process -FilePath $cloudflared `
+        Write-Host 'Локальный сервер уже запущен — использую его.' -ForegroundColor DarkGray
+    }
+    if (-not $health) { throw 'Сервер не запустился. Проверьте runtime\server.err.log.' }
+
+    $tunnel = Get-TrackedProcess $tunnelPidFile
+    $publicUrl = if ($tunnel) { Find-PublicUrl } else { $null }
+    if ($tunnel) {
+        Write-Host 'HTTPS-туннель уже запущен — восстанавливаю публичную ссылку.' -ForegroundColor DarkGray
+    } else {
+        Write-Host 'Создание публичного HTTPS-туннеля Cloudflare...'
+        Remove-Item -LiteralPath $tunnelOut, $tunnelErr -Force -ErrorAction SilentlyContinue
+        $startedTunnel = Start-Process -FilePath $cloudflared `
             -ArgumentList @('tunnel', '--no-autoupdate', '--url', "http://127.0.0.1:$Port") `
             -WorkingDirectory $root `
             -WindowStyle Hidden `
             -RedirectStandardOutput $tunnelOut `
             -RedirectStandardError $tunnelErr `
             -PassThru
-        Set-Content $tunnelPidFile $tunnel.Id -Encoding ascii
-
-        for ($attempt = 0; $attempt -lt 60; $attempt++) {
-            $text = ((Get-Content $tunnelOut -Raw -ErrorAction SilentlyContinue) + "`n" + (Get-Content $tunnelErr -Raw -ErrorAction SilentlyContinue))
-            if ($text -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $publicUrl = $Matches[0]; break }
-            if ($tunnel.HasExited) { break }
-            Start-Sleep -Milliseconds 500
-        }
-        if (-not $publicUrl) { throw 'Cloudflare Tunnel не выдал ссылку. Проверьте runtime\tunnel.err.log.' }
+        Set-Content -LiteralPath $tunnelPidFile -Value $startedTunnel.Id -Encoding ascii
+        $tunnel = $startedTunnel
     }
 
-    & (Join-Path $root 'Start-AgentAdmin.ps1') -Port $Port
+    Write-Host 'Ожидание публичной ссылки...'
+    for ($attempt = 0; -not $publicUrl -and $attempt -lt 90; $attempt++) {
+        $publicUrl = Find-PublicUrl
+        if (-not $publicUrl -and $tunnel.HasExited) { break }
+        if (-not $publicUrl) { Start-Sleep -Milliseconds 500 }
+    }
+    if (-not $publicUrl) { throw 'Cloudflare Tunnel не выдал ссылку. Проверьте runtime\tunnel.err.log.' }
+
+    # Save the URL before UAC so a later interruption cannot lose it.
+    $access = Save-PublicUrl $publicUrl
+    Write-Host "HTTPS-туннель готов: $publicUrl" -ForegroundColor Green
+
+    $agent = Get-TrackedProcess $agentPidFile
+    if ($agent) {
+        Write-Host 'Игровой агент уже запущен — повторный запуск не нужен.' -ForegroundColor DarkGray
+    } else {
+        Write-Host 'Сейчас появится запрос Windows. Нажмите «Да» для запуска игрового агента.' -ForegroundColor Yellow
+        & (Join-Path $root 'Start-AgentAdmin.ps1') -Port $Port
+    }
 } catch {
-    Stop-StartedProcess $tunnel $tunnelPidFile
-    Stop-StartedProcess $server $serverPidFile
+    if ($startedTunnel -and -not $startedTunnel.HasExited) {
+        Stop-Process -Id $startedTunnel.Id -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $tunnelPidFile -Force -ErrorAction SilentlyContinue
+    }
+    if ($startedServer -and -not $startedServer.HasExited) {
+        Stop-Process -Id $startedServer.Id -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $serverPidFile -Force -ErrorAction SilentlyContinue
+    }
     throw
 }
-
-$accessPath = Join-Path $runtime 'access.json'
-$access = Get-Content $accessPath -Raw | ConvertFrom-Json
-$access | Add-Member -NotePropertyName PublicUrl -NotePropertyValue $publicUrl -Force
-$access | ConvertTo-Json | Set-Content $accessPath -Encoding utf8
 
 Clear-Host
 Write-Host 'CHAOS LINK ЗАПУЩЕН' -ForegroundColor Green

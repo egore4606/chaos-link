@@ -78,17 +78,25 @@ try {
 
     if (-not $SkipShortcuts) {
         $shell = New-Object -ComObject WScript.Shell
-        $desktop = [Environment]::GetFolderPath('Desktop')
-        foreach ($item in @(
-            @{ Name='Chaos Link - Запустить.lnk'; Script='Start-ChaosLink.ps1' },
-            @{ Name='Chaos Link - Остановить.lnk'; Script='Stop-ChaosLink.ps1' },
-            @{ Name='Chaos Link - Удалить.lnk'; Script='Uninstall-ChaosLink.ps1' }
-        )) {
-            $shortcut = $shell.CreateShortcut((Join-Path $desktop $item.Name))
-            $shortcut.TargetPath = 'powershell.exe'
-            $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot $item.Script)`""
-            $shortcut.WorkingDirectory = $InstallRoot
-            $shortcut.Save()
+        $desktop = $shell.SpecialFolders.Item('Desktop')
+        if ([string]::IsNullOrWhiteSpace($desktop) -or -not (Test-Path -LiteralPath $desktop)) {
+            Write-Warning 'Папка рабочего стола недоступна. Установка продолжена без ярлыков.'
+        } else {
+            foreach ($item in @(
+                @{ Name='Chaos Link - Запустить.lnk'; Script='Start-ChaosLink.ps1' },
+                @{ Name='Chaos Link - Остановить.lnk'; Script='Stop-ChaosLink.ps1' },
+                @{ Name='Chaos Link - Удалить.lnk'; Script='Uninstall-ChaosLink.ps1' }
+            )) {
+                try {
+                    $shortcut = $shell.CreateShortcut((Join-Path $desktop $item.Name))
+                    $shortcut.TargetPath = 'powershell.exe'
+                    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot $item.Script)`""
+                    $shortcut.WorkingDirectory = $InstallRoot
+                    $shortcut.Save()
+                } catch {
+                    Write-Warning "Не удалось создать ярлык '$($item.Name)': $($_.Exception.Message)"
+                }
+            }
         }
     }
 } finally {
