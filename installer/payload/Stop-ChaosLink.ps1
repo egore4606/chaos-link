@@ -11,11 +11,21 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $runtime = Join-Path $PSScriptRoot 'runtime'
-foreach ($name in @('agent', 'tunnel', 'server')) {
+$expectedExecutables = @{
+    agent = Join-Path $PSScriptRoot 'dotnet\dotnet.exe'
+    server = Join-Path $PSScriptRoot 'dotnet\dotnet.exe'
+    console = Join-Path $PSScriptRoot 'dotnet\dotnet.exe'
+    tunnel = Join-Path $PSScriptRoot 'tools\cloudflared.exe'
+}
+foreach ($name in @('agent', 'tunnel', 'server', 'console')) {
     $pidFile = Join-Path $runtime "$name.pid"
     if (-not (Test-Path $pidFile)) { continue }
     $processId = [int](Get-Content $pidFile -Raw)
-    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+    $processPath = if ($process) { try { $process.Path } catch { $null } } else { $null }
+    if ($processPath -and $processPath.Equals($expectedExecutables[$name], [StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+    }
     Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
 }
 Write-Host 'Chaos Link остановлен.'

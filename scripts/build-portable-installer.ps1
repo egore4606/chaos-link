@@ -12,12 +12,13 @@ $uninstallOutput = Join-Path $dist 'ChaosLink-Uninstall.ps1'
 $uninstallExeOutput = Join-Path $dist 'ChaosLink-Uninstall.exe'
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
-New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app\server'), (Join-Path $stage 'app\agent'), (Join-Path $stage 'ahk'), (Join-Path $stage 'screamer\images'), (Join-Path $stage 'screamer\sounds') | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app\server'), (Join-Path $stage 'app\agent'), (Join-Path $stage 'app\control'), (Join-Path $stage 'ahk'), (Join-Path $stage 'screamer\images'), (Join-Path $stage 'screamer\sounds') | Out-Null
 
 Push-Location (Join-Path $root 'apps\web')
 try { npm run build } finally { Pop-Location }
 dotnet publish (Join-Path $root 'apps\server\ChaosLink.Server.csproj') -c Release -o (Join-Path $stage 'app\server') --no-self-contained
 dotnet publish (Join-Path $root 'apps\agent\ChaosLink.Agent.csproj') -c Release -o (Join-Path $stage 'app\agent') --no-self-contained
+dotnet publish (Join-Path $root 'apps\control\ChaosLink.Control.csproj') -c Release -o (Join-Path $stage 'app\control') --no-self-contained
 
 Copy-Item (Join-Path $root 'ahk\Effects.ahk') (Join-Path $stage 'ahk\Effects.ahk') -Force
 Copy-Item (Join-Path $root 'installer\payload\*.ps1') $stage -Force
@@ -53,7 +54,7 @@ if ($ps2exeModule) {
         $safeDescription = $description.Replace("'", "''")
         $compileCommand = @"
 Import-Module '$modulePath' -Force
-Invoke-ps2exe -inputFile '$inputPath' -outputFile '$compiledPath' -x64 -STA -requireAdmin -supportOS -title '$safeTitle' -description '$safeDescription' -company 'Chaos Link' -product 'Chaos Link' -version '0.4.0.0'
+Invoke-ps2exe -inputFile '$inputPath' -outputFile '$compiledPath' -x64 -STA -requireAdmin -supportOS -title '$safeTitle' -description '$safeDescription' -company 'Chaos Link' -product 'Chaos Link' -version '0.5.0.0'
 if (-not (Test-Path -LiteralPath '$compiledPath')) { exit 1 }
 "@
         $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($compileCommand))
@@ -70,3 +71,17 @@ if (-not (Test-Path -LiteralPath '$compiledPath')) { exit 1 }
 } else {
     Write-Warning 'Модуль ps2exe не найден; создан только PowerShell-установщик.'
 }
+
+if ($env:CHAOS_LINK_SIGNING_THUMBPRINT) {
+    & (Join-Path $root 'scripts\sign-release.ps1') -CertificateThumbprint $env:CHAOS_LINK_SIGNING_THUMBPRINT
+} elseif (Test-Path -LiteralPath $exeOutput) {
+    Write-Warning 'EXE-файлы не подписаны: переменная CHAOS_LINK_SIGNING_THUMBPRINT не задана.'
+}
+
+$checksumFiles = @($output, $uninstallOutput, $exeOutput, $uninstallExeOutput) | Where-Object { Test-Path -LiteralPath $_ }
+$checksumLines = $checksumFiles | ForEach-Object {
+    $hash = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$hash  $([IO.Path]::GetFileName($_))"
+}
+[IO.File]::WriteAllLines((Join-Path $dist 'SHA256SUMS.txt'), $checksumLines, [Text.UTF8Encoding]::new($false))
+Write-Host "Контрольные суммы: $(Join-Path $dist 'SHA256SUMS.txt')"

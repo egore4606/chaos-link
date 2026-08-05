@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [int]$Port = 5075,
-    [switch]$ReuseTunnel
+    [switch]$ReuseTunnel,
+    [switch]$SkipConsole
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,17 +14,19 @@ $cloudflared = Join-Path $root 'tools\cloudflared.exe'
 $serverPidFile = Join-Path $runtime 'server.pid'
 $tunnelPidFile = Join-Path $runtime 'tunnel.pid'
 $agentPidFile = Join-Path $runtime 'agent.pid'
+$consolePidFile = Join-Path $runtime 'console.pid'
 $accessPath = Join-Path $runtime 'access.json'
 $tunnelOut = Join-Path $runtime 'tunnel.out.log'
 $tunnelErr = Join-Path $runtime 'tunnel.err.log'
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 
-function Get-TrackedProcess([string]$pidFile) {
+function Get-TrackedProcess([string]$pidFile, [string]$expectedExecutable) {
     if (-not (Test-Path -LiteralPath $pidFile)) { return $null }
     try {
         $trackedId = [int](Get-Content -LiteralPath $pidFile -Raw)
         $process = Get-Process -Id $trackedId -ErrorAction SilentlyContinue
-        if ($process) { return $process }
+        $actualPath = if ($process) { try { $process.Path } catch { $null } } else { $null }
+        if ($actualPath -and $actualPath.Equals($expectedExecutable, [StringComparison]::OrdinalIgnoreCase)) { return $process }
     } catch {}
     Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
     return $null
@@ -70,7 +73,7 @@ function Save-PublicUrl([string]$url) {
 $startedServer = $null
 $startedTunnel = $null
 try {
-    $server = Get-TrackedProcess $serverPidFile
+    $server = Get-TrackedProcess $serverPidFile $dotnet
     $health = if ($server) { Wait-ForServer } else { $null }
     if ($server -and -not $health) {
         Write-Host 'Найден зависший сервер. Перезапускаю его...' -ForegroundColor Yellow
@@ -94,7 +97,7 @@ try {
     }
     if (-not $health) { throw 'Сервер не запустился. Проверьте runtime\server.err.log.' }
 
-    $tunnel = Get-TrackedProcess $tunnelPidFile
+    $tunnel = Get-TrackedProcess $tunnelPidFile $cloudflared
     $publicUrl = if ($tunnel) { Find-PublicUrl } else { $null }
     if ($tunnel) {
         Write-Host 'HTTPS-туннель уже запущен — восстанавливаю публичную ссылку.' -ForegroundColor DarkGray
@@ -124,7 +127,7 @@ try {
     $access = Save-PublicUrl $publicUrl
     Write-Host "HTTPS-туннель готов: $publicUrl" -ForegroundColor Green
 
-    $agent = Get-TrackedProcess $agentPidFile
+    $agent = Get-TrackedProcess $agentPidFile $dotnet
     if ($agent) {
         Write-Host 'Игровой агент уже запущен — повторный запуск не нужен.' -ForegroundColor DarkGray
     } else {
@@ -143,12 +146,34 @@ try {
     throw
 }
 
-Clear-Host
 Write-Host 'CHAOS LINK ЗАПУЩЕН' -ForegroundColor Green
 Write-Host "Сайт: $publicUrl"
 Write-Host "Комната: $($access.RoomCode)"
 Write-Host "Ключ гостей: $($access.ControllerToken)"
 Write-Host "Ключ администратора: $($access.AdminToken)"
 Write-Host ''
-Write-Host 'Скопируйте эти данные друзьям. Это окно можно закрыть.'
-Read-Host 'Нажмите Enter'
+Write-Host 'Ниже откроется постоянная консоль логов и управления.'
+if ($SkipConsole) { return }
+
+$existingConsole = Get-TrackedProcess $consolePidFile $dotnet
+if ($existingConsole) {
+    Write-Host 'Консоль управления уже открыта.' -ForegroundColor DarkGray
+    return
+}
+
+$controlDll = Join-Path $root 'app\control\ChaosLink.Control.dll'
+if (-not (Test-Path -LiteralPath $controlDll)) {
+    throw 'Консоль управления не найдена. Переустановите Chaos Link.'
+}
+
+$control = Start-Process -FilePath $dotnet `
+    -ArgumentList @($controlDll, '--root', $root) `
+    -WorkingDirectory $root `
+    -NoNewWindow `
+    -PassThru
+Set-Content -LiteralPath $consolePidFile -Value $control.Id -Encoding ascii
+try {
+    Wait-Process -Id $control.Id
+} finally {
+    Remove-Item -LiteralPath $consolePidFile -Force -ErrorAction SilentlyContinue
+}

@@ -1,0 +1,74 @@
+name: Build trusted release artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@v7
+
+      - name: Настроить .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Настроить Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Установить зависимости
+        shell: pwsh
+        run: |
+          npm ci --prefix apps/web
+          Install-Module ps2exe -Scope CurrentUser -Force
+
+      - name: Собрать установщик
+        shell: pwsh
+        run: ./scripts/build-portable-installer.ps1
+
+      - name: Подтвердить происхождение EXE
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*.exe
+
+      - name: Сохранить файлы сборки
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChaosLink-Windows
+          if-no-files-found: error
+          path: |
+            dist/ChaosLink-Setup.exe
+            dist/ChaosLink-Setup.ps1
+            dist/ChaosLink-Uninstall.exe
+            dist/ChaosLink-Uninstall.ps1
+            dist/SHA256SUMS.txt
+
+      - name: Опубликовать файлы в GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          gh release view $tag --repo '${{ github.repository }}' 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo '${{ github.repository }}' --title "Chaos Link $tag" --generate-notes
+          }
+          gh release upload $tag --repo '${{ github.repository }}' --clobber `
+            dist/ChaosLink-Setup.exe dist/ChaosLink-Setup.ps1 `
+            dist/ChaosLink-Uninstall.exe dist/ChaosLink-Uninstall.ps1 dist/SHA256SUMS.txt

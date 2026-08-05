@@ -37,7 +37,16 @@ for ($attempt = 0; $attempt -lt 40; $attempt++) {
 }
 
 if ($installedLayout) {
-    & $startScript -Port $Port -ReuseTunnel
+    $consolePidFile = Join-Path $scriptRoot 'runtime\console.pid'
+    $consoleRunning = $false
+    if (Test-Path -LiteralPath $consolePidFile) {
+        $consoleId = [int](Get-Content -LiteralPath $consolePidFile -Raw)
+        $consoleProcess = Get-Process -Id $consoleId -ErrorAction SilentlyContinue
+        $consolePath = if ($consoleProcess) { try { $consoleProcess.Path } catch { $null } } else { $null }
+        $expectedDotNet = Join-Path $scriptRoot 'dotnet\dotnet.exe'
+        $consoleRunning = $consolePath -and $consolePath.Equals($expectedDotNet, [StringComparison]::OrdinalIgnoreCase)
+    }
+    & $startScript -Port $Port -ReuseTunnel -SkipConsole:$consoleRunning
 } else {
     & $startScript -Port $Port
 }

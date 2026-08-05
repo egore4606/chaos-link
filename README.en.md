@@ -10,6 +10,17 @@
 [![Latest release](https://img.shields.io/github/v/release/egore4606/chaos-link)](https://github.com/egore4606/chaos-link/releases/latest)
 [![Windows](https://img.shields.io/badge/host-Windows-0078D4?logo=windows)](README.md#требования)
 
+## Easy setup — three steps
+
+1. **[Download ChaosLink-Setup.exe](https://github.com/egore4606/chaos-link/releases/latest/download/ChaosLink-Setup.exe)** from the latest release.
+2. Run it, approve the Windows prompt, and press Enter. Chaos Link installs into `%LOCALAPPDATA%\ChaosLink`.
+3. Keep the Chaos Link console open. Send your friends the displayed site URL, room code, and **friends password**.
+
+Desktop shortcuts provide Start, Stop, Files, and Uninstall actions. The live console accepts `status`, `info`, `restart`, `stop`, `folder`, and `help`.
+
+> [!CAUTION]
+> Do not disable Microsoft Defender or Chrome Safe Browsing. Until releases use a trusted publisher certificate, Windows may warn that a new executable has an unknown publisher. Download only from this repository's Releases page and compare its SHA-256 value with `SHA256SUMS.txt`. See [build trust and code signing](docs/TRUST_AND_SIGNING.md).
+
 Chaos Link turns an ordinary game with friends into a shared chaos challenge. Run it on the consenting player's Windows PC, send the room link to friends, and let them make the match harder from their phones: force a jump or reload, draw the knife, jerk the aim, block movement, flash the screen, or trigger a random screamer. Everyone sees the same cooldowns in real time.
 
 > [!IMPORTANT]
@@ -44,14 +55,7 @@ flowchart LR
 
 The browser authenticates to the ASP.NET Core server. The server validates the room and role, serializes state changes, and forwards accepted effect IDs to the single gaming-PC agent. The browser never communicates with AutoHotkey directly.
 
-## Quick start
-
-1. Download `ChaosLink-Setup.exe` from the [latest release](https://github.com/egore4606/chaos-link/releases/latest).
-2. Run it, review the displayed actions, type `INSTALL`, and approve the UAC prompt.
-3. Send the public URL, room code, and **guest key** to your friends.
-4. Keep the **admin key** private. Use the desktop shortcuts to stop or uninstall the session.
-
-The installer and application prompts are in Russian. Detailed requirements, development commands, effect descriptions, security notes, and support instructions are maintained in the [primary Russian README](README.md).
+The installer console is currently in Russian; the web dashboard can switch between Russian and English. Detailed requirements, development commands, effect descriptions, security notes, and support instructions are maintained in the [primary Russian README](README.md).
 
 > [!NOTE]
 > The generated `https://*.trycloudflare.com` address changes after each restart. Cloudflare Quick Tunnels are intended for temporary sessions, not permanent production hosting.

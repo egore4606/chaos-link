@@ -7,10 +7,17 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Write-Host 'Chaos Link устанавливает локальный игровой агент удалённых эффектов.' -ForegroundColor Yellow
-Write-Host 'После запуска люди с ключом смогут посылать разрешённые нажатия клавиш, движения мыши и экранные эффекты.'
-Write-Host 'Автозапуск и скрытая служба НЕ устанавливаются. Для работы используется Cloudflare Quick Tunnel.'
-if (-not $Accept -and (Read-Host 'Для добровольной установки введите INSTALL') -ne 'INSTALL') { Write-Host 'Отменено.'; exit }
+Write-Host 'CHAOS LINK — ПРОСТАЯ УСТАНОВКА' -ForegroundColor Green
+Write-Host ''
+Write-Host "Папка установки: $InstallRoot" -ForegroundColor Cyan
+Write-Host 'Будут установлены локальный сервер, игровой агент, AutoHotkey и Cloudflare Tunnel.'
+Write-Host 'После запуска друзья с выданным паролем смогут активировать только перечисленные игровые эффекты.'
+Write-Host 'Автозапуск и скрытая служба НЕ создаются. На рабочем столе появятся ярлыки запуска, остановки и удаления.'
+Write-Host ''
+if (-not $Accept) {
+    $answer = Read-Host 'Начать установку? Нажмите Enter или введите Y. Для отмены введите N'
+    if ($answer -match '^(n|no|нет)$') { Write-Host 'Установка отменена.'; exit }
+}
 
 $payloadBase64 = '__CHAOS_LINK_PAYLOAD__'
 $tempRoot = Join-Path $env:TEMP ("ChaosLinkSetup-" + [Guid]::NewGuid().ToString('N'))
@@ -83,14 +90,15 @@ try {
             Write-Warning 'Папка рабочего стола недоступна. Установка продолжена без ярлыков.'
         } else {
             foreach ($item in @(
-                @{ Name='Chaos Link - Запустить.lnk'; Script='Start-ChaosLink.ps1' },
-                @{ Name='Chaos Link - Остановить.lnk'; Script='Stop-ChaosLink.ps1' },
-                @{ Name='Chaos Link - Удалить.lnk'; Script='Uninstall-ChaosLink.ps1' }
+                @{ Name='Chaos Link - Start.lnk'; Target='powershell.exe'; Arguments="-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'Start-ChaosLink.ps1')`"" },
+                @{ Name='Chaos Link - Stop.lnk'; Target='powershell.exe'; Arguments="-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'Stop-ChaosLink.ps1')`"" },
+                @{ Name='Chaos Link - Uninstall.lnk'; Target='powershell.exe'; Arguments="-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot 'Uninstall-ChaosLink.ps1')`"" },
+                @{ Name='Chaos Link - Files.lnk'; Target='explorer.exe'; Arguments="`"$InstallRoot`"" }
             )) {
                 try {
                     $shortcut = $shell.CreateShortcut((Join-Path $desktop $item.Name))
-                    $shortcut.TargetPath = 'powershell.exe'
-                    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallRoot $item.Script)`""
+                    $shortcut.TargetPath = $item.Target
+                    $shortcut.Arguments = $item.Arguments
                     $shortcut.WorkingDirectory = $InstallRoot
                     $shortcut.Save()
                 } catch {
@@ -103,8 +111,11 @@ try {
     Remove-Item $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host "Chaos Link установлен: $InstallRoot" -ForegroundColor Green
+Write-Host ''
+Write-Host 'CHAOS LINK УСТАНОВЛЕН' -ForegroundColor Green
+Write-Host "Папка: $InstallRoot" -ForegroundColor Cyan
+if (-not $SkipShortcuts) { Write-Host 'Ярлыки созданы на рабочем столе: Start, Stop, Files и Uninstall.' }
 if (-not $SkipStart) {
-    Write-Host 'Сейчас будет создан публичный HTTPS-туннель и появится один запрос администратора.'
+    Write-Host 'Запускаю систему. Следующее окно останется открытым и будет показывать логи и команды управления.'
     & (Join-Path $InstallRoot 'Start-ChaosLink.ps1')
 }

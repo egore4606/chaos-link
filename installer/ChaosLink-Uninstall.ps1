@@ -46,7 +46,7 @@ $allowedExecutables = @(
     (Join-Path $resolvedRoot 'tools\cloudflared.exe')
 )
 
-foreach ($name in @('agent', 'tunnel', 'server')) {
+foreach ($name in @('agent', 'tunnel', 'server', 'console')) {
     $pidFile = Join-Path $runtime "$name.pid"
     if (-not (Test-Path -LiteralPath $pidFile)) { continue }
     $storedPid = 0
@@ -87,9 +87,13 @@ if (-not $SkipFirewallCleanup) {
         Remove-NetFirewallRule -ErrorAction SilentlyContinue
 }
 
-$desktop = [Environment]::GetFolderPath('Desktop')
+$shortcutShell = New-Object -ComObject WScript.Shell
+$desktop = $shortcutShell.SpecialFolders.Item('Desktop')
 if (-not [string]::IsNullOrWhiteSpace($desktop)) {
-    foreach ($name in @('Chaos Link - Запустить.lnk', 'Chaos Link - Остановить.lnk', 'Chaos Link - Удалить.lnk')) {
+    foreach ($name in @(
+        'Chaos Link - Start.lnk', 'Chaos Link - Stop.lnk', 'Chaos Link - Files.lnk', 'Chaos Link - Uninstall.lnk',
+        'Chaos Link - Запустить.lnk', 'Chaos Link - Остановить.lnk', 'Chaos Link - Удалить.lnk'
+    )) {
         Remove-Item -LiteralPath (Join-Path $desktop $name) -Force -ErrorAction SilentlyContinue
     }
 }
