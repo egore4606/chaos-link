@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible Chaos Link problem
+title: "[Bug]: "
+labels: ["type: bug", "status: needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a problem. Remove access keys, public room URLs, usernames, and personal media from logs and screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit hash
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, browser, and installation method
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Start...\n2. Connect...\n3. Trigger..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and sanitized logs
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Safety check
+      options:
+        - label: I tested only on systems where I had permission.
+          required: true

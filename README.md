@@ -1,151 +1,149 @@
 # Chaos Link
 
-Chaos Link is a small real-time control system for a private CS2 chaos session:
+**A synchronized web control panel for consent-based CS2 chaos sessions.**
 
-- any number of friends open the same web room;
-- one Windows gaming PC runs the local agent;
-- effect cooldowns are owned by the server and shared by every controller;
-- the agent accepts only allow-listed effect identifiers and delegates them to AutoHotkey v2.
+[![CI](https://github.com/egore4606/chaos-link/actions/workflows/ci.yml/badge.svg)](https://github.com/egore4606/chaos-link/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/egore4606/chaos-link)](https://github.com/egore4606/chaos-link/releases/latest)
+[![Windows](https://img.shields.io/badge/host-Windows-0078D4?logo=windows)](#requirements)
 
-## Project layout
+Chaos Link lets several friends trigger game effects from the same responsive web room while one consenting Windows gaming PC runs a tightly scoped local agent. The server owns room state, shared cooldowns, temporary user blocks, and execution timing, so every controller stays in sync.
 
-```text
-apps/server/   ASP.NET Core WebSocket server and room state
-apps/web/      React + Vite responsive controller UI
-apps/agent/    .NET console agent for the gaming PC
-ahk/           AutoHotkey v2 effect runner
-scripts/       Headless smoke test
-docs/          UI concept and protocol notes
+> [!IMPORTANT]
+> Chaos Link intentionally affects keyboard, mouse, screen, and audio input on the host PC. Install and run it only with the gaming-PC owner's informed permission. It has no autostart, hidden service, remote shell, DLL injection, or game-memory access.
+
+![Chaos Link desktop and mobile control panel](docs/ui-concept.png)
+
+## Highlights
+
+- Any number of browser controllers in one room
+- Server-authoritative cooldowns shared in real time
+- Admin pause, per-effect cooldown controls, and 30-second guest blocks
+- Nine allow-listed effects implemented through AutoHotkey v2
+- Random screamer images and sounds from user-managed folders
+- LAN access plus an optional temporary Cloudflare Quick Tunnel
+- One-file Windows installer with Start, Stop, and Uninstall shortcuts
+- Emergency input release from the admin panel or `Ctrl+Shift+F12`
+
+## How it works
+
+```mermaid
+flowchart LR
+    C1["Friend's browser"] -->|HTTPS / WebSocket| S["Chaos Link server"]
+    C2["Admin browser"] -->|HTTPS / WebSocket| S
+    S -->|Allow-listed command| A["Windows agent"]
+    A -->|Effect ID + duration| H["AutoHotkey v2"]
+    H --> G["CS2 / host desktop"]
+    A -->|Execution result| S
+    S -->|Shared state and cooldowns| C1
+    S -->|Shared state and cooldowns| C2
 ```
+
+The browser never talks directly to AutoHotkey. It authenticates to the ASP.NET Core server, which validates the room and role, serializes state changes, and forwards accepted effect IDs to the single gaming-PC agent. See the [WebSocket protocol](docs/protocol.md) for message examples.
+
+## Quick start for a gaming-PC host
+
+1. Download `ChaosLink-Setup.exe` from the [latest release](https://github.com/egore4606/chaos-link/releases/latest).
+2. Run the file, review the displayed actions, type `INSTALL`, and approve the UAC prompt.
+3. Copy the printed public URL, room code, and **guest key** to your friends.
+4. Keep the **admin key** private. Use the desktop shortcuts to stop or uninstall the session.
+
+The installer places the application, a private .NET runtime, AutoHotkey v2, and `cloudflared` under `%LOCALAPPDATA%\ChaosLink`. It does not create an autostart entry or Windows service.
+
+If the desktop shortcut is unavailable, run the standalone `ChaosLink-Uninstall.exe` from the release. It asks for confirmation, stops only the recorded Chaos Link processes, removes the dedicated firewall rule and shortcuts, then deletes the marked installation directory. It refuses to remove an unmarked or protected directory.
+
+> [!NOTE]
+> The generated `https://*.trycloudflare.com` address changes after each restart. Cloudflare Quick Tunnels are suitable for temporary sessions, not permanent production hosting.
 
 ## Requirements
 
-- .NET SDK 9
-- Node.js 20+
-- AutoHotkey v2 on the gaming PC
+### Ready-made installer
 
-## One-file Windows installer
+- A Windows PC with internet access during installation
+- Permission to approve one UAC prompt for the input agent and LAN firewall rule
+- A modern browser on each controller device
 
-Build the self-contained setup script:
+### Development
+
+- [.NET SDK 9](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [Node.js 20 or newer](https://nodejs.org/)
+- [AutoHotkey v2](https://www.autohotkey.com/) on the gaming PC
+
+## Development setup
+
+Build the web application:
+
+```powershell
+cd apps/web
+npm ci
+npm run lint
+npm run build
+```
+
+Build the .NET solution:
+
+```powershell
+cd ../..
+dotnet restore ChaosLink.sln
+dotnet build ChaosLink.sln --configuration Release --no-restore
+```
+
+Start the server and agent in separate terminals:
+
+```powershell
+dotnet run --project apps/server --urls http://0.0.0.0:5075
+dotnet run --project apps/agent
+```
+
+Open `http://localhost:5075` locally or `http://<gaming-pc-ip>:5075` on the same LAN.
+
+The checked-in settings contain development-only credentials:
+
+| Role | Development value | Configuration key |
+| --- | --- | --- |
+| Room | `K7M2` | `ChaosLink:RoomCode` |
+| Guest | `friend-access` | `ChaosLink:ControllerToken` |
+| Admin | `admin-access` | `ChaosLink:AdminToken` |
+| Agent | `agent-secret` | `ChaosLink:AgentToken` |
+
+> [!WARNING]
+> Replace every development value before exposing a manually configured server to the internet. The release installer generates fresh random values automatically. Browser keys are kept in session storage only.
+
+## Effects and controls
+
+| Group | Effects |
+| --- | --- |
+| Quick actions | Draw knife, reload, jump, drop weapon |
+| Controls | Mouse jerk, hold Ctrl, block WASD |
+| Screen and audio | White flash, random screamer |
+
+Place custom media in the installed `screamer\images` and `screamer\sounds` folders. The app picks an image and sound independently at activation time; empty folders use the built-in fallback.
+
+The administrator can pause all effects, block a connected guest for 30 seconds, and set future shared cooldowns from 0 to 3600 seconds. Use `Ctrl+Shift+F12` on the gaming PC for an emergency release of held keys and temporary input blocks.
+
+## Build the Windows installer
 
 ```powershell
 .\scripts\build-portable-installer.ps1
 ```
 
-If the `ps2exe` module is installed, the build also creates
-`dist\ChaosLink-Setup.exe`. Send that EXE to the consenting gaming-PC owner and
-run it normally. The PowerShell script remains available as a fallback:
+The build writes `dist\ChaosLink-Setup.ps1` and `dist\ChaosLink-Uninstall.ps1`. When the `ps2exe` module is available, it also produces `dist\ChaosLink-Setup.exe` and `dist\ChaosLink-Uninstall.exe`. The PowerShell setup fallback runs with:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\ChaosLink-Setup.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\dist\ChaosLink-Setup.ps1
 ```
 
-The setup explains what remote effects can do and requires typing `INSTALL`.
-It installs the app, a private .NET runtime, AutoHotkey v2, and Cloudflare
-Tunnel under `%LOCALAPPDATA%\ChaosLink`. It adds desktop shortcuts to start,
-stop, and completely uninstall the app. There is no autostart or hidden
-Windows service. One UAC prompt is used when the gaming agent starts.
-
-Startup prints a random public `https://*.trycloudflare.com` URL plus the room
-and access keys. Quick Tunnel needs no account or inbound router port, but its
-URL changes after every restart and it is intended for temporary sessions, not
-production hosting. Keep the admin key private.
-
-## Development
-
-Install and build the web application:
-
-```powershell
-cd apps/web
-npm install
-npm run build
-```
-
-Start the server:
-
-```powershell
-cd apps/server
-dotnet run --urls http://0.0.0.0:5075
-```
-
-Open `http://localhost:5075` locally. Friends on the same network can use
-`http://<gaming-pc-ip>:5075`. For internet access, put the server behind HTTPS
-and WSS (for example a reverse proxy or a private tunnel); do not expose the
-agent itself.
-
-Start the gaming-PC agent in another terminal:
-
-```powershell
-cd apps/agent
-dotnet run
-```
-
-The development defaults are:
-
-- room: `K7M2`
-- controller key: `friend-access`
-- admin key: `admin-access`
-- agent key: `agent-secret`
-
-Change all three values before making the service reachable from the internet.
-Server values live in `apps/server/appsettings.json`; agent values live in
-`apps/agent/appsettings.json`.
-
-The web panel asks for a display name, role, room code, and matching key. Any
-number of friends may use the controller key. Only the administrator can pause
-or resume all effects. Keys are kept only in the browser's session storage.
-
-## Local production host for a reverse proxy
-
-Build a deploy directory with fresh random controller and agent keys:
+For a manual local deployment with newly generated credentials:
 
 ```powershell
 .\scripts\publish-chaos-link.ps1
-```
-
-Start the website and gaming-PC agent without visible windows:
-
-```powershell
 .\scripts\start-chaos-link.ps1
-```
-
-The server listens on all local network interfaces by default, so another device
-on the same LAN can open `http://<gaming-pc-ip>:5075`. The reverse-proxy upstream
-remains `http://127.0.0.1:5075`. Point your HTTPS/WSS reverse
-proxy to this address and preserve WebSocket upgrade headers. The room code,
-controller key, admin key, and upstream are stored locally in `.runtime/access.json`.
-
-Stop both processes:
-
-```powershell
+# later
 .\scripts\stop-chaos-link.ps1
 ```
 
-## AutoHotkey
+Runtime credentials are written to `.runtime/access.json`, which is excluded from Git.
 
-Set `AutoHotkeyPath` in `apps/agent/appsettings.json` if AutoHotkey is not on
-`PATH`. The agent launches a controlled AHK process for each active effect and
-tracks it until completion. Effects are sent to the active Windows session
-without checking which window is in the foreground. Use the administrator pause
-as the global stop switch.
-
-Screamer media is loaded at activation time. Put any number of PNG images in
-`deploy\screamer\images` and WAV/MP3/WMA/M4A files in
-`deploy\screamer\sounds`; one image and one sound are selected independently at
-random. Empty folders fall back to the built-in warning image and beeps.
-
-In the administrator panel, click an online guest to block that display name
-for 30 seconds. The cooldown field under every effect changes the shared room
-cooldown for future activations (0-3600 seconds).
-
-Emergency release:
-
-- press `Ctrl+Shift+F12` on the gaming PC; or
-- use **Экстренная пауза** in the web panel.
-
-Both paths release held keys and disable temporary input blocks.
-
-## Headless smoke test
+## Test
 
 With the server running:
 
@@ -153,13 +151,28 @@ With the server running:
 node scripts/smoke-test.mjs
 ```
 
-The test connects one agent and two controllers, triggers an effect, verifies
-that both controllers receive the same cooldown, and confirms that an immediate
-second trigger is rejected.
+The smoke test connects one agent and two controllers, triggers an effect, verifies that both controllers receive the same cooldown, and confirms that an immediate duplicate trigger is rejected.
 
-## Safety notes
+## Security and game policy
 
-Chaos Link does not inject DLLs, inspect game memory, detect enemies, or expose
-a remote shell. Nevertheless, game policies can change and no third-party tool
-can promise VAC safety. Use it in private/community games and keep CS2 Trusted
-Mode enabled. Driver-level input interception is deliberately not used.
+Chaos Link uses role-specific shared tokens and an allow-list of effect identifiers. Do not expose the agent endpoint separately, share the admin or agent key, or commit generated runtime files. Read [SECURITY.md](SECURITY.md) before operating a public endpoint or reporting a vulnerability.
+
+Game and platform policies can change, and no third-party input automation can guarantee anti-cheat compatibility. Prefer private or community games, keep CS2 Trusted Mode enabled, and stop the tool before entering environments where automation is prohibited.
+
+## Project structure
+
+```text
+apps/server/     ASP.NET Core WebSocket server and room state
+apps/web/        React + Vite responsive controller UI
+apps/agent/      .NET gaming-PC agent
+ahk/             AutoHotkey v2 allow-listed effect runner
+installer/       Transparent portable Windows setup payload
+scripts/         Build, launch, stop, and smoke-test tools
+docs/            Protocol notes and UI preview
+```
+
+## Contributing and support
+
+Bug reports and focused improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), use [GitHub Issues](https://github.com/egore4606/chaos-link/issues) for reproducible bugs and feature proposals, and see [SUPPORT.md](SUPPORT.md) for usage questions.
+
+No open-source license has been granted yet. Unless a license is added, the repository remains publicly viewable source with all rights reserved by its owner.
