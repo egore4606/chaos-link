@@ -1,20 +1,20 @@
-## What changed
+## Что изменено
 
-<!-- Describe the user-visible or technical change. -->
+<!-- Опишите пользовательское или техническое изменение. -->
 
-## Why
+## Зачем
 
-<!-- Explain the problem or motivation. -->
+<!-- Объясните проблему или причину изменения. -->
 
-## Validation
+## Проверка
 
 - [ ] `dotnet build ChaosLink.sln --configuration Release`
-- [ ] `npm run lint` in `apps/web`
-- [ ] `npm run build` in `apps/web`
-- [ ] Smoke test, when protocol or synchronization changed
+- [ ] `npm run lint` в `apps/web`
+- [ ] `npm run build` в `apps/web`
+- [ ] Smoke-тест, если изменены протокол или синхронизация
 
-## Safety and UI impact
+## Влияние на безопасность и интерфейс
 
-- [ ] No credentials, room URLs, logs, or personal media are included
-- [ ] Host-input or security impact is described above
-- [ ] Screenshot attached for visible UI changes, or not applicable
+- [ ] Учётные данные, ссылки комнат, логи и личные медиафайлы не добавлены
+- [ ] Влияние на ввод компьютера и безопасность описано выше
+- [ ] Для заметных изменений интерфейса приложен снимок экрана или это неприменимо

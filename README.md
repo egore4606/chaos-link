@@ -1,76 +1,78 @@
 # Chaos Link
 
-**Let your friends sabotage your CS2 session from their phones in real time.**
+**Позвольте друзьям мешать вам играть в CS2 прямо со своих телефонов.**
+
+[English version](README.en.md)
 
 [![CI](https://github.com/egore4606/chaos-link/actions/workflows/ci.yml/badge.svg)](https://github.com/egore4606/chaos-link/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/egore4606/chaos-link)](https://github.com/egore4606/chaos-link/releases/latest)
-[![Windows](https://img.shields.io/badge/host-Windows-0078D4?logo=windows)](#requirements)
+[![Последний релиз](https://img.shields.io/github/v/release/egore4606/chaos-link)](https://github.com/egore4606/chaos-link/releases/latest)
+[![Windows](https://img.shields.io/badge/host-Windows-0078D4?logo=windows)](#требования)
 
-Chaos Link turns an ordinary game with friends into a shared chaos challenge. You run it on the consenting player's Windows PC, send the room link to your friends, and they use their phones or browsers to make the match harder at the worst possible moment: force a jump or reload, pull out the knife, jerk the aim, block movement, flash the screen, or trigger a random screamer. Everyone sees the same cooldowns, so the group plays against the victim rather than spamming disconnected controls.
+Chaos Link превращает обычную игру с друзьями в совместное испытание хаосом. Программа запускается на Windows-компьютере согласившегося игрока. Вы отправляете друзьям ссылку на комнату, а они с телефонов или из браузера могут в самый неподходящий момент заставить игрока прыгнуть или перезарядиться, достать нож, резко дёрнуть прицел, заблокировать движение, ослепить экран или включить случайный скример. Все видят общие кулдауны, поэтому друзья играют против «жертвы» вместе, а не нажимают несвязанные кнопки.
 
 > [!IMPORTANT]
-> Chaos Link intentionally affects keyboard, mouse, screen, and audio input on the host PC. Install and run it only with the gaming-PC owner's informed permission. It has no autostart, hidden service, remote shell, DLL injection, or game-memory access.
+> Chaos Link намеренно воздействует на клавиатуру, мышь, экран и звук компьютера игрока. Устанавливайте и запускайте его только с осознанного разрешения владельца компьютера. В программе нет автозапуска, скрытой службы, удалённой командной строки, DLL-инъекций или доступа к памяти игры.
 
-![Chaos Link desktop and mobile control panel](docs/ui-concept.png)
+![Панель Chaos Link на компьютере и телефоне](docs/ui-concept.png)
 
-## What your friends can do
+## Что могут делать друзья
 
-- Any number of browser controllers in one room
-- Server-authoritative cooldowns shared in real time
-- Admin pause, per-effect cooldown controls, and 30-second guest blocks
-- Nine allow-listed effects implemented through AutoHotkey v2
-- Random screamer images and sounds from user-managed folders
-- LAN access plus an optional temporary Cloudflare Quick Tunnel
-- One-file Windows installer with Start, Stop, and Uninstall shortcuts
-- Emergency input release from the admin panel or `Ctrl+Shift+F12`
+- Подключать к одной комнате любое количество браузеров
+- Видеть общие серверные кулдауны в реальном времени
+- Ставить систему на паузу, менять кулдауны эффектов и блокировать гостя на 30 секунд из админ-панели
+- Запускать девять разрешённых эффектов через AutoHotkey v2
+- Использовать случайные изображения и звуки скримеров из собственных папок
+- Подключаться по локальной сети или через временный Cloudflare Quick Tunnel
+- Устанавливать всё одним Windows-файлом с ярлыками запуска, остановки и удаления
+- Экстренно освобождать ввод из админ-панели или сочетанием `Ctrl+Shift+F12`
 
-## How it works
+## Как это работает
 
 ```mermaid
 flowchart LR
-    C1["Friend's browser"] -->|HTTPS / WebSocket| S["Chaos Link server"]
-    C2["Admin browser"] -->|HTTPS / WebSocket| S
-    S -->|Allow-listed command| A["Windows agent"]
-    A -->|Effect ID + duration| H["AutoHotkey v2"]
-    H --> G["CS2 / host desktop"]
-    A -->|Execution result| S
-    S -->|Shared state and cooldowns| C1
-    S -->|Shared state and cooldowns| C2
+    C1["Браузер друга"] -->|HTTPS / WebSocket| S["Сервер Chaos Link"]
+    C2["Браузер администратора"] -->|HTTPS / WebSocket| S
+    S -->|Разрешённая команда| A["Windows-агент"]
+    A -->|ID эффекта + длительность| H["AutoHotkey v2"]
+    H --> G["CS2 / рабочий стол игрока"]
+    A -->|Результат выполнения| S
+    S -->|Общее состояние и кулдауны| C1
+    S -->|Общее состояние и кулдауны| C2
 ```
 
-The browser never talks directly to AutoHotkey. It authenticates to the ASP.NET Core server, which validates the room and role, serializes state changes, and forwards accepted effect IDs to the single gaming-PC agent. See the [WebSocket protocol](docs/protocol.md) for message examples.
+Браузер никогда не обращается к AutoHotkey напрямую. Он авторизуется на сервере ASP.NET Core, который проверяет комнату и роль, последовательно обрабатывает изменения состояния и передаёт разрешённые ID эффектов единственному агенту игрового компьютера. Примеры сообщений приведены в описании [протокола WebSocket](docs/protocol.md).
 
-## Quick start for a gaming-PC host
+## Быстрый запуск на игровом компьютере
 
-1. Download `ChaosLink-Setup.exe` from the [latest release](https://github.com/egore4606/chaos-link/releases/latest).
-2. Run the file, review the displayed actions, type `INSTALL`, and approve the UAC prompt.
-3. Copy the printed public URL, room code, and **guest key** to your friends.
-4. Keep the **admin key** private. Use the desktop shortcuts to stop or uninstall the session.
+1. Скачайте `ChaosLink-Setup.exe` из [последнего релиза](https://github.com/egore4606/chaos-link/releases/latest).
+2. Запустите файл, прочитайте список действий, введите `INSTALL` и подтвердите запрос UAC.
+3. Отправьте друзьям показанные установщиком публичную ссылку, код комнаты и **гостевой ключ**.
+4. Никому не передавайте **ключ администратора**. Для остановки или удаления используйте ярлыки на рабочем столе.
 
-The installer places the application, a private .NET runtime, AutoHotkey v2, and `cloudflared` under `%LOCALAPPDATA%\ChaosLink`. It does not create an autostart entry or Windows service.
+Установщик размещает приложение, отдельную среду .NET, AutoHotkey v2 и `cloudflared` в `%LOCALAPPDATA%\ChaosLink`. Он не добавляет программу в автозагрузку и не создаёт службу Windows.
 
-If the desktop shortcut is unavailable, run the standalone `ChaosLink-Uninstall.exe` from the release. It asks for confirmation, stops only the recorded Chaos Link processes, removes the dedicated firewall rule and shortcuts, then deletes the marked installation directory. It refuses to remove an unmarked or protected directory.
+Если ярлык недоступен, запустите отдельный `ChaosLink-Uninstall.exe` из релиза. Он попросит подтверждение, остановит только зарегистрированные процессы Chaos Link, удалит отдельное правило брандмауэра и ярлыки, а затем удалит отмеченную папку установки. Неотмеченную или защищённую папку деинсталлятор удалять откажется.
 
 > [!NOTE]
-> The generated `https://*.trycloudflare.com` address changes after each restart. Cloudflare Quick Tunnels are suitable for temporary sessions, not permanent production hosting.
+> Адрес вида `https://*.trycloudflare.com` меняется после каждого перезапуска. Cloudflare Quick Tunnels подходят для временных игровых сессий, а не для постоянного хостинга.
 
-## Requirements
+## Требования
 
-### Ready-made installer
+### Готовый установщик
 
-- A Windows PC with internet access during installation
-- Permission to approve one UAC prompt for the input agent and LAN firewall rule
-- A modern browser on each controller device
+- Компьютер с Windows и интернетом во время установки
+- Возможность подтвердить один запрос UAC для агента ввода и правила локальной сети в брандмауэре
+- Современный браузер на каждом управляющем устройстве
 
-### Development
+### Разработка
 
 - [.NET SDK 9](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Node.js 20 or newer](https://nodejs.org/)
-- [AutoHotkey v2](https://www.autohotkey.com/) on the gaming PC
+- [AutoHotkey v2](https://www.autohotkey.com/) на игровом компьютере
 
-## Development setup
+## Настройка для разработки
 
-Build the web application:
+Сборка веб-приложения:
 
 ```powershell
 cd apps/web
@@ -79,7 +81,7 @@ npm run lint
 npm run build
 ```
 
-Build the .NET solution:
+Сборка решения .NET:
 
 ```powershell
 cd ../..
@@ -87,92 +89,92 @@ dotnet restore ChaosLink.sln
 dotnet build ChaosLink.sln --configuration Release --no-restore
 ```
 
-Start the server and agent in separate terminals:
+Запуск сервера и агента в отдельных терминалах:
 
 ```powershell
 dotnet run --project apps/server --urls http://0.0.0.0:5075
 dotnet run --project apps/agent
 ```
 
-Open `http://localhost:5075` locally or `http://<gaming-pc-ip>:5075` on the same LAN.
+На этом компьютере откройте `http://localhost:5075`, а в той же локальной сети — `http://<gaming-pc-ip>:5075`.
 
-The checked-in settings contain development-only credentials:
+Настройки в репозитории содержат только тестовые данные для разработки:
 
-| Role | Development value | Configuration key |
+| Роль | Тестовое значение | Ключ настройки |
 | --- | --- | --- |
-| Room | `K7M2` | `ChaosLink:RoomCode` |
-| Guest | `friend-access` | `ChaosLink:ControllerToken` |
-| Admin | `admin-access` | `ChaosLink:AdminToken` |
-| Agent | `agent-secret` | `ChaosLink:AgentToken` |
+| Комната | `K7M2` | `ChaosLink:RoomCode` |
+| Гость | `friend-access` | `ChaosLink:ControllerToken` |
+| Администратор | `admin-access` | `ChaosLink:AdminToken` |
+| Агент | `agent-secret` | `ChaosLink:AgentToken` |
 
 > [!WARNING]
-> Replace every development value before exposing a manually configured server to the internet. The release installer generates fresh random values automatically. Browser keys are kept in session storage only.
+> Замените все тестовые значения перед публикацией сервера, настроенного вручную. Установщик из релиза автоматически создаёт новые случайные значения. Браузер хранит ключи только в хранилище текущей сессии.
 
-## Effects and controls
+## Эффекты и управление
 
-| Group | Effects |
+| Группа | Эффекты |
 | --- | --- |
-| Quick actions | Draw knife, reload, jump, drop weapon |
-| Controls | Mouse jerk, hold Ctrl, block WASD |
-| Screen and audio | White flash, random screamer |
+| Быстрые действия | Достать нож, перезарядиться, прыгнуть, выбросить оружие |
+| Управление | Дёрнуть мышь, удерживать Ctrl, заблокировать WASD |
+| Экран и звук | Белая вспышка, случайный скример |
 
-Place custom media in the installed `screamer\images` and `screamer\sounds` folders. The app picks an image and sound independently at activation time; empty folders use the built-in fallback.
+Добавляйте свои файлы в установленные папки `screamer\images` и `screamer\sounds`. При активации приложение независимо выбирает случайные изображение и звук; если папки пусты, используется встроенный вариант.
 
-The administrator can pause all effects, block a connected guest for 30 seconds, and set future shared cooldowns from 0 to 3600 seconds. Use `Ctrl+Shift+F12` on the gaming PC for an emergency release of held keys and temporary input blocks.
+Администратор может поставить все эффекты на паузу, заблокировать подключённого гостя на 30 секунд и установить общие кулдауны от 0 до 3600 секунд. Для экстренного освобождения удерживаемых клавиш и временных блокировок нажмите `Ctrl+Shift+F12` на игровом компьютере.
 
-## Build the Windows installer
+## Сборка установщика Windows
 
 ```powershell
 .\scripts\build-portable-installer.ps1
 ```
 
-The build writes `dist\ChaosLink-Setup.ps1` and `dist\ChaosLink-Uninstall.ps1`. When the `ps2exe` module is available, it also produces `dist\ChaosLink-Setup.exe` and `dist\ChaosLink-Uninstall.exe`. The PowerShell setup fallback runs with:
+Сборка создаёт `dist\ChaosLink-Setup.ps1` и `dist\ChaosLink-Uninstall.ps1`. Если доступен модуль `ps2exe`, также создаются `dist\ChaosLink-Setup.exe` и `dist\ChaosLink-Uninstall.exe`. Запасной PowerShell-вариант установщика запускается так:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\dist\ChaosLink-Setup.ps1
 ```
 
-For a manual local deployment with newly generated credentials:
+Ручное локальное развёртывание с новыми учётными данными:
 
 ```powershell
 .\scripts\publish-chaos-link.ps1
 .\scripts\start-chaos-link.ps1
-# later
+# позже
 .\scripts\stop-chaos-link.ps1
 ```
 
-Runtime credentials are written to `.runtime/access.json`, which is excluded from Git.
+Рабочие учётные данные сохраняются в `.runtime/access.json`; этот файл исключён из Git.
 
-## Test
+## Проверка
 
-With the server running:
+При запущенном сервере:
 
 ```powershell
 node scripts/smoke-test.mjs
 ```
 
-The smoke test connects one agent and two controllers, triggers an effect, verifies that both controllers receive the same cooldown, and confirms that an immediate duplicate trigger is rejected.
+Smoke-тест подключает одного агента и два контроллера, запускает эффект, проверяет одинаковый кулдаун у обоих контроллеров и убеждается, что немедленный повторный запуск отклонён.
 
-## Security and game policy
+## Безопасность и правила игры
 
-Chaos Link uses role-specific shared tokens and an allow-list of effect identifiers. Do not expose the agent endpoint separately, share the admin or agent key, or commit generated runtime files. Read [SECURITY.md](SECURITY.md) before operating a public endpoint or reporting a vulnerability.
+Chaos Link использует отдельные общие токены для каждой роли и список разрешённых идентификаторов эффектов. Не публикуйте отдельно адрес агента, не передавайте ключ администратора или агента и не добавляйте рабочие файлы в Git. Перед публикацией сервера или сообщением об уязвимости прочитайте [SECURITY.md](SECURITY.md).
 
-Game and platform policies can change, and no third-party input automation can guarantee anti-cheat compatibility. Prefer private or community games, keep CS2 Trusted Mode enabled, and stop the tool before entering environments where automation is prohibited.
+Правила игры и платформы могут меняться, а сторонняя автоматизация ввода не гарантирует совместимость с античитом. Предпочитайте закрытые или пользовательские игры, не отключайте Trusted Mode в CS2 и останавливайте программу там, где автоматизация запрещена.
 
-## Project structure
+## Структура проекта
 
 ```text
-apps/server/     ASP.NET Core WebSocket server and room state
-apps/web/        React + Vite responsive controller UI
-apps/agent/      .NET gaming-PC agent
-ahk/             AutoHotkey v2 allow-listed effect runner
-installer/       Transparent portable Windows setup payload
-scripts/         Build, launch, stop, and smoke-test tools
-docs/            Protocol notes and UI preview
+apps/server/     WebSocket-сервер ASP.NET Core и состояние комнаты
+apps/web/        Адаптивная панель управления на React + Vite
+apps/agent/      .NET-агент игрового компьютера
+ahk/             Обработчик разрешённых эффектов на AutoHotkey v2
+installer/       Прозрачный переносимый установщик Windows
+scripts/         Сборка, запуск, остановка и smoke-тесты
+docs/            Описание протокола и изображение интерфейса
 ```
 
-## Contributing and support
+## Участие в разработке и поддержка
 
-Bug reports and focused improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), use [GitHub Issues](https://github.com/egore4606/chaos-link/issues) for reproducible bugs and feature proposals, and see [SUPPORT.md](SUPPORT.md) for usage questions.
+Сообщения о воспроизводимых ошибках и точечные улучшения приветствуются. Прочитайте [CONTRIBUTING.md](CONTRIBUTING.md), создавайте [GitHub Issues](https://github.com/egore4606/chaos-link/issues) для ошибок и предложений, а по вопросам использования обращайтесь к [SUPPORT.md](SUPPORT.md).
 
-No open-source license has been granted yet. Unless a license is added, the repository remains publicly viewable source with all rights reserved by its owner.
+Открытая лицензия пока не предоставлена. Пока она не добавлена, исходный код доступен для просмотра, но все права сохраняются за владельцем репозитория.

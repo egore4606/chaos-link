@@ -1,15 +1,15 @@
-# Contributing to Chaos Link
+# Участие в разработке Chaos Link
 
-Thanks for helping improve Chaos Link. Keep changes focused, transparent, and safe for the consenting gaming-PC host.
+Спасибо за помощь в улучшении Chaos Link. Изменения должны быть точечными, прозрачными и безопасными для согласившегося владельца игрового компьютера.
 
-## Before opening a pull request
+## Перед созданием pull request
 
-1. Create a short branch from the current `main`.
-2. Do not commit generated installers, runtime credentials, logs, custom screamer media, or deployment output.
-3. Keep all commands on the agent side allow-listed. Changes that add arbitrary command execution, stealth, persistence, or anti-cheat bypasses are out of scope.
-4. Update documentation when behavior or configuration changes.
+1. Создайте отдельную короткую ветку от актуальной `main`.
+2. Не добавляйте в коммиты сгенерированные установщики, рабочие учётные данные, логи, пользовательские файлы скримеров или результаты развёртывания.
+3. Все команды агента должны оставаться в списке разрешённых. Произвольное выполнение команд, скрытая работа, постоянное закрепление в системе и обход античита не входят в задачи проекта.
+4. Обновляйте документацию при изменении поведения или настроек.
 
-## Local checks
+## Локальные проверки
 
 ```powershell
 dotnet restore ChaosLink.sln
@@ -21,12 +21,12 @@ npm run lint
 npm run build
 ```
 
-For protocol changes, start the server and run the synchronization smoke test:
+При изменении протокола запустите сервер и smoke-тест синхронизации:
 
 ```powershell
 node scripts/smoke-test.mjs
 ```
 
-## Pull requests
+## Pull request
 
-Explain what changed, why it is needed, how it was tested, and any security or host-input impact. Include a screenshot for visible UI changes. Keep secrets and real room URLs out of screenshots and logs.
+Опишите, что изменено, зачем это нужно, как выполнялась проверка и как изменение влияет на безопасность или ввод компьютера игрока. Для заметных изменений интерфейса приложите снимок экрана. Не показывайте секреты и настоящие ссылки комнат в снимках или логах.

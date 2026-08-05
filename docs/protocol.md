@@ -1,27 +1,27 @@
-# WebSocket protocol
+# Протокол WebSocket
 
-Clients connect to:
+Клиенты подключаются по адресам:
 
 ```text
 /ws?room=K7M2&role=controller&name=Egor
 /ws?room=K7M2&role=agent&name=Gaming-PC
 ```
 
-The first message must arrive within five seconds and authenticates the socket
-without putting a secret in reverse-proxy access logs:
+Первое сообщение должно прийти в течение пяти секунд. Оно авторизует соединение,
+не добавляя секрет в журналы доступа reverse proxy:
 
 ```json
 { "type": "auth", "token": "friend-access" }
 ```
 
-Controller messages:
+Сообщения контроллера:
 
 ```json
 { "type": "trigger", "effectId": "reload" }
 { "type": "ping", "clientTime": 1785935600000 }
 ```
 
-Administrator messages:
+Сообщения администратора:
 
 ```json
 { "type": "pause", "paused": true }
@@ -29,15 +29,15 @@ Administrator messages:
 { "type": "setCooldown", "effectId": "reload", "cooldownSeconds": 15 }
 ```
 
-Agent messages:
+Сообщения агента:
 
 ```json
 { "type": "ack", "eventId": "...", "status": "executed", "detail": null }
 { "type": "ping", "clientTime": 1785935600000 }
 ```
 
-Every accepted trigger is stamped with a unique `eventId`, one server-owned
-`nextAvailableAt`, and one `executeAt`. The room mutation is protected by a
-lock, so two simultaneous controller requests cannot both consume an effect.
-User blocks last 30 seconds and cooldown changes accept values from 0 to 3600
-seconds.
+Каждый принятый запуск получает уникальный `eventId`, серверное значение
+`nextAvailableAt` и значение `executeAt`. Изменение комнаты защищено блокировкой,
+поэтому два одновременных запроса контроллеров не могут оба запустить один эффект.
+Блокировка пользователя длится 30 секунд, а кулдаун может принимать значения
+от 0 до 3600 секунд.

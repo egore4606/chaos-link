@@ -1,26 +1,26 @@
-# Security policy
+# Политика безопасности
 
-## Supported versions
+## Поддерживаемые версии
 
-Chaos Link is a small early-stage project. Security fixes target the latest code on `main` and the newest published release only.
+Chaos Link — небольшой проект на ранней стадии. Исправления безопасности выпускаются только для актуального кода в `main` и последнего опубликованного релиза.
 
-## Reporting a vulnerability
+## Сообщение об уязвимости
 
-Please do not publish exploitable details in a public issue. Use [GitHub private vulnerability reporting](https://github.com/egore4606/chaos-link/security/advisories/new) and include:
+Не публикуйте пригодные для эксплуатации подробности в открытом issue. Используйте [приватное сообщение об уязвимости GitHub](https://github.com/egore4606/chaos-link/security/advisories/new) и укажите:
 
-- the affected version or commit;
-- reproduction steps and expected impact;
-- whether the issue exposes a room, host input, credentials, or local files;
-- a suggested mitigation, if known.
+- затронутую версию или коммит;
+- шаги воспроизведения и ожидаемые последствия;
+- раскрывает ли проблема комнату, управление компьютером, учётные данные или локальные файлы;
+- возможный способ устранения, если он известен.
 
-Do not test against systems or users without their permission.
+Не проводите проверку на системах или пользователях без их разрешения.
 
-## Deployment guidance
+## Рекомендации по развёртыванию
 
-- Generate unique room, guest, admin, and agent credentials for every installation.
-- Share only the guest key with controllers and keep the admin and agent keys private.
-- Do not commit `.runtime`, `deploy`, `dist`, logs, or custom media containing personal information.
-- Expose the web server only through HTTPS/WSS or a trusted LAN; never expose a separate remote-control or shell endpoint.
-- Stop the app and use the emergency release if input behavior is unexpected.
+- Создавайте уникальные данные комнаты, гостя, администратора и агента для каждой установки.
+- Передавайте контроллерам только гостевой ключ; ключи администратора и агента храните в тайне.
+- Не добавляйте в Git `.runtime`, `deploy`, `dist`, логи или пользовательские медиафайлы с личной информацией.
+- Публикуйте веб-сервер только через HTTPS/WSS или доверенную локальную сеть; никогда не открывайте отдельный удалённый терминал или командную строку.
+- При неожиданном поведении ввода остановите приложение и используйте экстренное освобождение.
 
-The bundled development credentials are examples only and must not be used for an internet-accessible manual deployment. The installer generates fresh random credentials.
+Встроенные тестовые учётные данные приведены только как пример и не должны использоваться при ручной публикации сервера в интернете. Установщик создаёт новые случайные значения.

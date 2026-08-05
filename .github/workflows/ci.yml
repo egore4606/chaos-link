@@ -15,35 +15,35 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Check out repository
+      - name: Получить репозиторий
         uses: actions/checkout@v7
 
-      - name: Set up .NET
+      - name: Настроить .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 9.0.x
 
-      - name: Restore .NET projects
+      - name: Восстановить проекты .NET
         run: dotnet restore ChaosLink.sln
 
-      - name: Build .NET projects
+      - name: Собрать проекты .NET
         run: dotnet build ChaosLink.sln --configuration Release --no-restore
 
-      - name: Set up Node.js
+      - name: Настроить Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install web dependencies
+      - name: Установить зависимости веб-приложения
         working-directory: apps/web
         run: npm ci
 
-      - name: Lint web application
+      - name: Проверить стиль веб-приложения
         working-directory: apps/web
         run: npm run lint
 
-      - name: Build web application
+      - name: Собрать веб-приложение
         working-directory: apps/web
         run: npm run build

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Security vulnerability
+  - name: Уязвимость безопасности
     url: https://github.com/egore4606/chaos-link/security/advisories/new
-    about: Report security vulnerabilities privately.
-  - name: Usage and support
+    about: Сообщить об уязвимости конфиденциально.
+  - name: Использование и поддержка
     url: https://github.com/egore4606/chaos-link/blob/main/SUPPORT.md
-    about: Read the support guide before filing a bug.
+    about: Прочитайте руководство поддержки перед сообщением об ошибке.

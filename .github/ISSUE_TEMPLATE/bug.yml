@@ -1,48 +1,48 @@
-name: Bug report
-description: Report a reproducible Chaos Link problem
-title: "[Bug]: "
+name: Сообщение об ошибке
+description: Сообщить о воспроизводимой проблеме Chaos Link
+title: "[Ошибка]: "
 labels: ["type: bug", "status: needs-triage"]
 body:
   - type: markdown
     attributes:
-      value: Thanks for reporting a problem. Remove access keys, public room URLs, usernames, and personal media from logs and screenshots.
+      value: Спасибо за сообщение. Удалите ключи доступа, публичные ссылки комнат, имена пользователей и личные медиафайлы из логов и снимков экрана.
   - type: input
     id: version
     attributes:
-      label: Version
-      description: Release tag or commit hash
+      label: Версия
+      description: Тег релиза или хеш коммита
     validations:
       required: true
   - type: input
     id: environment
     attributes:
-      label: Environment
-      description: Windows version, browser, and installation method
+      label: Окружение
+      description: Версия Windows, браузер и способ установки
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Reproduction steps
-      placeholder: "1. Start...\n2. Connect...\n3. Trigger..."
+      label: Шаги воспроизведения
+      placeholder: "1. Запустить...\n2. Подключиться...\n3. Активировать..."
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
+      label: Ожидаемое поведение
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
-      label: Actual behavior and sanitized logs
+      label: Фактическое поведение и очищенные логи
     validations:
       required: true
   - type: checkboxes
     id: consent
     attributes:
-      label: Safety check
+      label: Проверка безопасности
       options:
-        - label: I tested only on systems where I had permission.
+        - label: Я проводил проверку только на системах, для которых получил разрешение.
           required: true

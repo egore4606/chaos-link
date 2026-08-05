@@ -1,25 +1,25 @@
-name: Feature request
-description: Propose a focused improvement
-title: "[Feature]: "
+name: Предложение функции
+description: Предложить конкретное улучшение
+title: "[Функция]: "
 labels: ["type: feature", "status: needs-triage"]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: What limitation or workflow problem would this solve?
+      label: Проблема
+      description: Какое ограничение или проблему процесса это решит?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed solution
+      label: Предлагаемое решение
     validations:
       required: true
   - type: textarea
     id: safety
     attributes:
-      label: Host-input and security impact
-      description: Explain any new input control, permissions, networking, or data exposure.
+      label: Влияние на ввод и безопасность
+      description: Опишите новое управление вводом, разрешения, сетевое взаимодействие или раскрытие данных.
     validations:
       required: true

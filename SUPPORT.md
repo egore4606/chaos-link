@@ -1,7 +1,7 @@
-# Support
+# Поддержка
 
-Use [GitHub Issues](https://github.com/egore4606/chaos-link/issues) for reproducible installation problems, bugs, and focused feature requests.
+Используйте [GitHub Issues](https://github.com/egore4606/chaos-link/issues) для воспроизводимых проблем установки, ошибок и конкретных предложений новых возможностей.
 
-For a useful report, include the Windows version, Chaos Link release, relevant log excerpt, and exact reproduction steps. Remove room URLs, access keys, usernames, local paths, and personal screamer media before posting.
+Чтобы сообщение было полезным, укажите версию Windows, релиз Chaos Link, относящийся к проблеме фрагмент лога и точные шаги воспроизведения. Перед публикацией удалите ссылки комнат, ключи доступа, имена пользователей, локальные пути и личные файлы скримеров.
 
-Security vulnerabilities belong in [private vulnerability reporting](https://github.com/egore4606/chaos-link/security/advisories/new), not a public issue.
+Об уязвимостях сообщайте через [приватную форму GitHub](https://github.com/egore4606/chaos-link/security/advisories/new), а не в открытом issue.
