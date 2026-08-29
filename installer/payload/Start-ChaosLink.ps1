@@ -2,7 +2,8 @@
 param(
     [int]$Port = 5075,
     [switch]$ReuseTunnel,
-    [switch]$SkipConsole
+    [switch]$SkipConsole,
+    [switch]$ElevatedAgent
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,6 +21,8 @@ $accessPath = Join-Path $runtime 'access.json'
 $tunnelOut = Join-Path $runtime 'tunnel.out.log'
 $tunnelErr = Join-Path $runtime 'tunnel.err.log'
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+$startupLog = Join-Path $runtime 'startup.log'
+try { Start-Transcript -LiteralPath $startupLog -Append | Out-Null } catch {}
 
 function Get-TrackedProcess([string]$pidFile, [string]$expectedExecutable) {
     if (-not (Test-Path -LiteralPath $pidFile)) { return $null }
@@ -124,16 +127,30 @@ try {
     }
     if (-not $publicUrl) { throw 'Cloudflare Tunnel не выдал ссылку. Проверьте runtime\tunnel.err.log.' }
 
-    # Save the URL before UAC so a later interruption cannot lose it.
+    # Save the URL before starting the agent so a later interruption cannot lose it.
     $access = Save-PublicUrl $publicUrl
     Write-Host "HTTPS-туннель готов: $publicUrl" -ForegroundColor Green
 
     $agent = Get-TrackedProcess $agentPidFile $agentExe
     if ($agent) {
         Write-Host 'Игровой агент уже запущен — повторный запуск не нужен.' -ForegroundColor DarkGray
-    } else {
-        Write-Host 'Сейчас появится запрос Windows. Нажмите «Да» для запуска игрового агента.' -ForegroundColor Yellow
+    } elseif ($ElevatedAgent) {
+        Write-Host 'Запрошен повышенный режим агента. Подтвердите запрос Windows.' -ForegroundColor Yellow
         & (Join-Path $root 'Start-AgentAdmin.ps1') -Port $Port
+    } else {
+        Write-Host 'Запуск игрового агента...'
+        $startedAgent = Start-Process -FilePath $agentExe `
+            -WorkingDirectory (Join-Path $root 'app\agent') `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $runtime 'agent.out.log') `
+            -RedirectStandardError (Join-Path $runtime 'agent.err.log') `
+            -PassThru
+        Set-Content -LiteralPath $agentPidFile -Value $startedAgent.Id -Encoding ascii
+        Start-Sleep -Seconds 1
+        if ($startedAgent.HasExited) {
+            Remove-Item -LiteralPath $agentPidFile -Force -ErrorAction SilentlyContinue
+            throw 'Агент не запустился. Проверьте runtime\agent.err.log и runtime\startup.log.'
+        }
     }
 } catch {
     if ($startedTunnel -and -not $startedTunnel.HasExited) {
