@@ -43,8 +43,8 @@ if ($installedLayout) {
         $consoleId = [int](Get-Content -LiteralPath $consolePidFile -Raw)
         $consoleProcess = Get-Process -Id $consoleId -ErrorAction SilentlyContinue
         $consolePath = if ($consoleProcess) { try { $consoleProcess.Path } catch { $null } } else { $null }
-        $expectedDotNet = Join-Path $scriptRoot 'dotnet\dotnet.exe'
-        $consoleRunning = $consolePath -and $consolePath.Equals($expectedDotNet, [StringComparison]::OrdinalIgnoreCase)
+        $expectedControl = Join-Path $scriptRoot 'app\control\ChaosLink.Control.exe'
+        $consoleRunning = $consolePath -and $consolePath.Equals($expectedControl, [StringComparison]::OrdinalIgnoreCase)
     }
     & $startScript -Port $Port -ReuseTunnel -SkipConsole:$consoleRunning
 } else {

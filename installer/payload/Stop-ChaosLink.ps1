@@ -1,20 +1,22 @@
 [CmdletBinding()]
-param()
+param([switch]$RemoveFirewallRule)
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+    if ($RemoveFirewallRule) { $arguments += '-RemoveFirewallRule' }
     $process = Start-Process -FilePath 'powershell.exe' `
-        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"") `
+        -ArgumentList $arguments `
         -Verb RunAs -WindowStyle Hidden -Wait -PassThru
     exit $process.ExitCode
 }
 
 $runtime = Join-Path $PSScriptRoot 'runtime'
 $expectedExecutables = @{
-    agent = Join-Path $PSScriptRoot 'dotnet\dotnet.exe'
-    server = Join-Path $PSScriptRoot 'dotnet\dotnet.exe'
-    console = Join-Path $PSScriptRoot 'dotnet\dotnet.exe'
+    agent = Join-Path $PSScriptRoot 'app\agent\ChaosLink.Agent.exe'
+    server = Join-Path $PSScriptRoot 'app\server\ChaosLink.Server.exe'
+    console = Join-Path $PSScriptRoot 'app\control\ChaosLink.Control.exe'
     tunnel = Join-Path $PSScriptRoot 'tools\cloudflared.exe'
 }
 foreach ($name in @('agent', 'tunnel', 'server', 'console')) {
@@ -27,5 +29,9 @@ foreach ($name in @('agent', 'tunnel', 'server', 'console')) {
         Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
     }
     Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+}
+if ($RemoveFirewallRule) {
+    Get-NetFirewallRule -DisplayName 'Chaos Link LAN' -ErrorAction SilentlyContinue |
+        Remove-NetFirewallRule -ErrorAction SilentlyContinue
 }
 Write-Host 'Chaos Link остановлен.'
