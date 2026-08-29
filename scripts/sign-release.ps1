@@ -4,8 +4,7 @@ param(
     [ValidatePattern('^[A-Fa-f0-9]{40}$')]
     [string]$CertificateThumbprint,
     [string[]]$Files = @(
-        (Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\ChaosLink-Setup.exe'),
-        (Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\ChaosLink-Uninstall.exe')
+        (Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\ChaosLink-Setup.exe')
     ),
     [string]$TimestampUrl = 'http://timestamp.acs.microsoft.com'
 )

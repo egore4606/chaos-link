@@ -47,3 +47,12 @@ jobs:
       - name: Собрать веб-приложение
         working-directory: apps/web
         run: npm run build
+
+      - name: Проверить PowerShell установщика
+        shell: pwsh
+        run: |
+          $errors = @()
+          Get-ChildItem installer,scripts -Recurse -Filter *.ps1 | ForEach-Object {
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$errors) | Out-Null
+          }
+          if ($errors.Count) { $errors | Format-List; throw 'PowerShell parser errors found.' }

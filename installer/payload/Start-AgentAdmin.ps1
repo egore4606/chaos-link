@@ -14,17 +14,16 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 
 $root = $PSScriptRoot
 $runtime = Join-Path $root 'runtime'
-$dotnet = Join-Path $root 'dotnet\dotnet.exe'
-$agentDll = Join-Path $root 'app\agent\ChaosLink.Agent.dll'
+$agentExe = Join-Path $root 'app\agent\ChaosLink.Agent.exe'
+$serverExe = Join-Path $root 'app\server\ChaosLink.Server.exe'
 
 $rule = Get-NetFirewallRule -DisplayName 'Chaos Link LAN' -ErrorAction SilentlyContinue
 if (-not $rule) {
     New-NetFirewallRule -DisplayName 'Chaos Link LAN' -Direction Inbound -Action Allow `
-        -Protocol TCP -LocalPort $Port -Profile Private -RemoteAddress LocalSubnet | Out-Null
+        -Program $serverExe -Protocol TCP -LocalPort $Port -Profile Private -RemoteAddress LocalSubnet | Out-Null
 }
 
-$agent = Start-Process -FilePath $dotnet `
-    -ArgumentList @($agentDll) `
+$agent = Start-Process -FilePath $agentExe `
     -WorkingDirectory (Join-Path $root 'app\agent') `
     -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $runtime 'agent.out.log') `

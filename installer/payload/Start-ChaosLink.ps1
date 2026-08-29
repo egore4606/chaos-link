@@ -8,8 +8,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $runtime = Join-Path $root 'runtime'
-$dotnet = Join-Path $root 'dotnet\dotnet.exe'
-$serverDll = Join-Path $root 'app\server\ChaosLink.Server.dll'
+$serverExe = Join-Path $root 'app\server\ChaosLink.Server.exe'
+$agentExe = Join-Path $root 'app\agent\ChaosLink.Agent.exe'
+$controlExe = Join-Path $root 'app\control\ChaosLink.Control.exe'
 $cloudflared = Join-Path $root 'tools\cloudflared.exe'
 $serverPidFile = Join-Path $runtime 'server.pid'
 $tunnelPidFile = Join-Path $runtime 'tunnel.pid'
@@ -73,7 +74,7 @@ function Save-PublicUrl([string]$url) {
 $startedServer = $null
 $startedTunnel = $null
 try {
-    $server = Get-TrackedProcess $serverPidFile $dotnet
+    $server = Get-TrackedProcess $serverPidFile $serverExe
     $health = if ($server) { Wait-ForServer } else { $null }
     if ($server -and -not $health) {
         Write-Host 'Найден зависший сервер. Перезапускаю его...' -ForegroundColor Yellow
@@ -83,8 +84,8 @@ try {
     }
     if (-not $server) {
         Write-Host 'Запуск локального сервера...'
-        $startedServer = Start-Process -FilePath $dotnet `
-            -ArgumentList @($serverDll, '--urls', "http://0.0.0.0:$Port") `
+        $startedServer = Start-Process -FilePath $serverExe `
+            -ArgumentList @('--urls', "http://0.0.0.0:$Port") `
             -WorkingDirectory (Join-Path $root 'app\server') `
             -WindowStyle Hidden `
             -RedirectStandardOutput (Join-Path $runtime 'server.out.log') `
@@ -127,7 +128,7 @@ try {
     $access = Save-PublicUrl $publicUrl
     Write-Host "HTTPS-туннель готов: $publicUrl" -ForegroundColor Green
 
-    $agent = Get-TrackedProcess $agentPidFile $dotnet
+    $agent = Get-TrackedProcess $agentPidFile $agentExe
     if ($agent) {
         Write-Host 'Игровой агент уже запущен — повторный запуск не нужен.' -ForegroundColor DarkGray
     } else {
@@ -155,19 +156,18 @@ Write-Host ''
 Write-Host 'Ниже откроется постоянная консоль логов и управления.'
 if ($SkipConsole) { return }
 
-$existingConsole = Get-TrackedProcess $consolePidFile $dotnet
+$existingConsole = Get-TrackedProcess $consolePidFile $controlExe
 if ($existingConsole) {
     Write-Host 'Консоль управления уже открыта.' -ForegroundColor DarkGray
     return
 }
 
-$controlDll = Join-Path $root 'app\control\ChaosLink.Control.dll'
-if (-not (Test-Path -LiteralPath $controlDll)) {
+if (-not (Test-Path -LiteralPath $controlExe)) {
     throw 'Консоль управления не найдена. Переустановите Chaos Link.'
 }
 
-$control = Start-Process -FilePath $dotnet `
-    -ArgumentList @($controlDll, '--root', $root) `
+$control = Start-Process -FilePath $controlExe `
+    -ArgumentList @('--root', $root) `
     -WorkingDirectory $root `
     -NoNewWindow `
     -PassThru

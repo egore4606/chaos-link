@@ -31,15 +31,53 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Установить зависимости
+      - name: Установить зависимости сборки
         shell: pwsh
         run: |
           npm ci --prefix apps/web
-          Install-Module ps2exe -Scope CurrentUser -Force
+          choco install innosetup --version=6.7.1 --yes --no-progress
 
-      - name: Собрать установщик
+      - name: Собрать полностью офлайн-установщик
         shell: pwsh
-        run: ./scripts/build-portable-installer.ps1
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { $version = '0.6.0' }
+          ./scripts/build-portable-installer.ps1 -Version $version
+
+      - name: Проверить тихую установку и удаление
+        shell: pwsh
+        run: |
+          $testRoot = Join-Path $env:RUNNER_TEMP 'Chaos Link installer test кириллица'
+          $setupLog = Join-Path $env:RUNNER_TEMP 'ChaosLink-setup-test.log'
+          $setupArguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /MERGETASKS=!desktopicon /DIR=`"$testRoot`" /LOG=`"$setupLog`""
+          $setup = Start-Process ./dist/ChaosLink-Setup.exe -Wait -PassThru -ArgumentList $setupArguments
+          if ($setup.ExitCode -ne 0) { Get-Content $setupLog; throw "Setup failed: $($setup.ExitCode)" }
+          foreach ($path in @(
+            'app/server/ChaosLink.Server.exe', 'app/agent/ChaosLink.Agent.exe',
+            'app/control/ChaosLink.Control.exe', 'tools/AutoHotkey64.exe',
+            'tools/cloudflared.exe', 'runtime/access.json', '.chaos-link-install'
+          )) {
+            if (-not (Test-Path (Join-Path $testRoot $path))) { throw "Missing installed file: $path" }
+          }
+          $before = Get-Content (Join-Path $testRoot 'runtime/access.json') -Raw | ConvertFrom-Json
+          $upgrade = Start-Process ./dist/ChaosLink-Setup.exe -Wait -PassThru -ArgumentList $setupArguments
+          if ($upgrade.ExitCode -ne 0) { throw "Upgrade failed: $($upgrade.ExitCode)" }
+          $after = Get-Content (Join-Path $testRoot 'runtime/access.json') -Raw | ConvertFrom-Json
+          if ($before.RoomCode -ne $after.RoomCode -or
+              $before.ControllerToken -ne $after.ControllerToken -or
+              $before.AdminToken -ne $after.AdminToken) {
+            throw 'Upgrade replaced existing room credentials.'
+          }
+          $uninstaller = Get-ChildItem $testRoot -Filter 'unins*.exe' | Select-Object -First 1
+          if (-not $uninstaller) { throw 'Inno Setup uninstaller was not installed.' }
+          $uninstall = Start-Process $uninstaller.FullName -Wait -PassThru -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
+          )
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstall failed: $($uninstall.ExitCode)" }
+          for ($attempt = 0; $attempt -lt 20 -and (Test-Path $testRoot); $attempt++) {
+            Start-Sleep -Milliseconds 250
+          }
+          if (Test-Path $testRoot) { throw "Installer test directory remains: $testRoot" }
 
       - name: Подтвердить происхождение EXE
         uses: actions/attest@v4
@@ -53,9 +91,6 @@ jobs:
           if-no-files-found: error
           path: |
             dist/ChaosLink-Setup.exe
-            dist/ChaosLink-Setup.ps1
-            dist/ChaosLink-Uninstall.exe
-            dist/ChaosLink-Uninstall.ps1
             dist/SHA256SUMS.txt
 
       - name: Опубликовать файлы в GitHub Release
@@ -70,5 +105,4 @@ jobs:
             gh release create $tag --repo '${{ github.repository }}' --title "Chaos Link $tag" --generate-notes
           }
           gh release upload $tag --repo '${{ github.repository }}' --clobber `
-            dist/ChaosLink-Setup.exe dist/ChaosLink-Setup.ps1 `
-            dist/ChaosLink-Uninstall.exe dist/ChaosLink-Uninstall.ps1 dist/SHA256SUMS.txt
+            dist/ChaosLink-Setup.exe dist/SHA256SUMS.txt

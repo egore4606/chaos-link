@@ -13,10 +13,10 @@
 ## Easy setup — three steps
 
 1. **[Download ChaosLink-Setup.exe](https://github.com/egore4606/chaos-link/releases/latest/download/ChaosLink-Setup.exe)** from the latest release.
-2. Run it, approve the Windows prompt, and press Enter. Chaos Link installs into `%LOCALAPPDATA%\ChaosLink`.
-3. Keep the Chaos Link console open. Send your friends the displayed site URL, room code, and **friends password**.
+2. Run the normal setup wizard. Installation is fully offline: .NET, AutoHotkey, and `cloudflared` are already inside the EXE.
+3. Start Chaos Link from its shortcut, approve the Windows prompt for the input agent, and send your friends the displayed site URL, room code, and **friends password**.
 
-Desktop shortcuts provide Start, Stop, Files, and Uninstall actions. The live console accepts `status`, `info`, `restart`, `stop`, `folder`, and `help`.
+The Start menu provides Start, Stop, Files, and Uninstall actions; desktop shortcuts are optional in the wizard. The live console accepts `status`, `info`, `restart`, `stop`, `folder`, and `help`.
 
 > [!CAUTION]
 > Do not disable Microsoft Defender or Chrome Safe Browsing. Until releases use a trusted publisher certificate, Windows may warn that a new executable has an unknown publisher. Download only from this repository's Releases page and compare its SHA-256 value with `SHA256SUMS.txt`. See [build trust and code signing](docs/TRUST_AND_SIGNING.md).
@@ -36,7 +36,7 @@ Chaos Link turns an ordinary game with friends into a shared chaos challenge. Ru
 - Eleven allow-listed AutoHotkey v2 effects, including fire blocking and a grenade-under-feet sequence
 - User-managed random screamer images and sounds
 - LAN access and an optional temporary Cloudflare Quick Tunnel
-- One-file Windows installer with Start, Stop, and Uninstall shortcuts
+- One-file offline Windows installer with Start, Stop, and Uninstall shortcuts
 - Emergency input release from the admin panel or `Ctrl+Shift+F12`
 
 ## Architecture
@@ -55,7 +55,7 @@ flowchart LR
 
 The browser authenticates to the ASP.NET Core server. The server validates the room and role, serializes state changes, and forwards accepted effect IDs to the single gaming-PC agent. The browser never communicates with AutoHotkey directly.
 
-The installer console is currently in Russian; the web dashboard can switch between Russian and English. Detailed requirements, development commands, effect descriptions, security notes, and support instructions are maintained in the [primary Russian README](README.md).
+The installer supports Russian and English; the application console is currently in Russian, and the web dashboard can switch between Russian and English. The installer supports 64-bit Windows 10 (1607+) and Windows 11 and needs internet only when starting the public tunnel. Detailed requirements, development commands, effect descriptions, security notes, and support instructions are maintained in the [primary Russian README](README.md).
 
 > [!NOTE]
 > The generated `https://*.trycloudflare.com` address changes after each restart. Cloudflare Quick Tunnels are intended for temporary sessions, not permanent production hosting.
