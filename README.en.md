@@ -14,7 +14,7 @@
 
 1. **[Download ChaosLink-Setup.exe](https://github.com/egore4606/chaos-link/releases/latest/download/ChaosLink-Setup.exe)** from the latest release.
 2. Run the normal setup wizard. Installation is fully offline: .NET, AutoHotkey, and `cloudflared` are already inside the EXE.
-3. Start Chaos Link from its shortcut, approve the Windows prompt for the input agent, and send your friends the displayed site URL, room code, and **friends password**.
+3. Start Chaos Link from its shortcut and send your friends the displayed site URL, room code, and **friends password**. Normal startup no longer requires a UAC prompt.
 
 The Start menu provides Start, Stop, Files, and Uninstall actions; desktop shortcuts are optional in the wizard. The live console accepts `status`, `info`, `restart`, `stop`, `folder`, and `help`.
 

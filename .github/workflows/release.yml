@@ -41,7 +41,7 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ github.ref_name }}' -replace '^v', ''
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { $version = '0.6.0' }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { $version = '0.6.1' }
           ./scripts/build-portable-installer.ps1 -Version $version
 
       - name: Проверить тихую установку и удаление
